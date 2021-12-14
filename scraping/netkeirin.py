@@ -40,10 +40,10 @@ class OddsScraper(NetkeirinSeleniumScraperBase):
 
     def get_2shafuku_odds_table(self):
         # 2車複
-        self.__get_element(
-            By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[1]/nav/ul/li[4]/button').click()
-        self.__get_element(
-            By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[2]/nav/ul/li[2]/button').click()
+        self.__click_element(
+            By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[1]/nav/ul/li[4]/button')
+        self.__click_element(
+            By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[2]/nav/ul/li[2]/button')
         element = self.__get_element(By.XPATH, '//*[@id="root-app"]/div[1]/article/div[1]')
         dfs = pd.read_html(element.get_attribute('outerHTML'))
         target_df = dfs[2].copy().iloc[:, :-1]
@@ -63,10 +63,10 @@ class OddsScraper(NetkeirinSeleniumScraperBase):
 
     def get_2shatan_odds_table(self):
         # 2車単
-        self.__get_element(
-            By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[1]/nav/ul/li[2]/button').click()
-        self.__get_element(
-            By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[2]/nav/ul/li[2]/button').click()
+        self.__click_element(
+            By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[1]/nav/ul/li[2]/button')
+        self.__click_element(
+            By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[2]/nav/ul/li[2]/button')
         element = self.__get_element(By.XPATH, '//*[@id="root-app"]/div[1]/article/div[1]')
         dfs = pd.read_html(element.get_attribute('outerHTML'))
         target_df = dfs[2].copy()
@@ -82,10 +82,10 @@ class OddsScraper(NetkeirinSeleniumScraperBase):
 
     def get_3renpuku_odds_table(self, sleep_time=0.2):
         # 3連複
-        self.__get_element(
-            By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[1]/nav/ul/li[3]/button').click()
-        self.__get_element(
-            By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[2]/nav/ul/li[2]/button').click()
+        self.__click_element(
+            By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[1]/nav/ul/li[3]/button')
+        self.__click_element(
+            By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[2]/nav/ul/li[2]/button')
         element = self.driver.find_element_by_xpath('//*[@id="entry_axis"]')
         select = Select(element)
         renpuku_list = list()
@@ -117,10 +117,10 @@ class OddsScraper(NetkeirinSeleniumScraperBase):
 
     def get_3rentan_odds_table(self):
         # 3連単
-        self.__get_element(
-            By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[1]/nav/ul/li[1]/button').click()
-        self.__get_element(
-            By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[2]/nav/ul/li[2]/button').click()
+        self.__click_element(
+            By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[1]/nav/ul/li[1]/button')
+        self.__click_element(
+            By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[2]/nav/ul/li[2]/button')
         element = self.driver.find_element_by_xpath('//*[@id="entry_axis"]')
         select = Select(element)
         rentan_list = list()
