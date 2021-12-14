@@ -1,2 +1,2 @@
-# netkeiba_scraping
-netkeibaのスクレイピング用
+# scraping
+スクレイピング用リポジトリ
