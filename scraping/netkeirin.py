@@ -41,11 +41,11 @@ class OddsScraper(NetkeirinSeleniumScraperBase):
 
     def get_2shafuku_odds_table(self):
         # 2車複
-        self.__click_element(
+        self._click_element(
             By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[1]/nav/ul/li[4]/button')
-        self.__click_element(
+        self._click_element(
             By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[2]/nav/ul/li[2]/button')
-        element = self.__get_element(
+        element = self._get_element(
             By.XPATH, '//*[@id="root-app"]/div[1]/article/div[1]')
         dfs = pd.read_html(element.get_attribute('outerHTML'))
         target_df = dfs[2].copy().iloc[:, :-1]
@@ -66,11 +66,11 @@ class OddsScraper(NetkeirinSeleniumScraperBase):
 
     def get_2shatan_odds_table(self):
         # 2車単
-        self.__click_element(
+        self._click_element(
             By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[1]/nav/ul/li[2]/button')
-        self.__click_element(
+        self._click_element(
             By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[2]/nav/ul/li[2]/button')
-        element = self.__get_element(
+        element = self._get_element(
             By.XPATH, '//*[@id="root-app"]/div[1]/article/div[1]')
         dfs = pd.read_html(element.get_attribute('outerHTML'))
         target_df = dfs[2].copy()
@@ -87,9 +87,9 @@ class OddsScraper(NetkeirinSeleniumScraperBase):
 
     def get_3renpuku_odds_table(self, sleep_time=0.2):
         # 3連複
-        self.__click_element(
+        self._click_element(
             By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[1]/nav/ul/li[3]/button')
-        self.__click_element(
+        self._click_element(
             By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[2]/nav/ul/li[2]/button')
         element = self.driver.find_element_by_xpath('//*[@id="entry_axis"]')
         select = Select(element)
@@ -97,7 +97,7 @@ class OddsScraper(NetkeirinSeleniumScraperBase):
         for first in range(1, select.options.__len__() + 1):
             select.select_by_value(f'{first - 1}')
             time.sleep(0.5)
-            element = self.__get_element(
+            element = self._get_element(
                 By.XPATH, '//*[@id="root-app"]/div[1]/article/div[2]/div')
             dfs = pd.read_html(element.get_attribute('outerHTML'))
             target_df = dfs[2].copy().iloc[:, :-1]
@@ -126,9 +126,9 @@ class OddsScraper(NetkeirinSeleniumScraperBase):
 
     def get_3rentan_odds_table(self):
         # 3連単
-        self.__click_element(
+        self._click_element(
             By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[1]/nav/ul/li[1]/button')
-        self.__click_element(
+        self._click_element(
             By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[2]/nav/ul/li[2]/button')
         element = self.driver.find_element_by_xpath('//*[@id="entry_axis"]')
         select = Select(element)
@@ -136,7 +136,7 @@ class OddsScraper(NetkeirinSeleniumScraperBase):
         for first in range(1, select.options.__len__() + 1):
             select.select_by_value(f'{first - 1}')
             time.sleep(0.5)
-            element = self.__get_element(
+            element = self._get_element(
                 By.XPATH, '//*[@id="root-app"]/div[1]/article/div[2]/div')
             dfs = pd.read_html(element.get_attribute('outerHTML'))
             target_df = dfs[2].copy()
@@ -170,7 +170,7 @@ class PrizeScraper(NetkeirinSeleniumScraperBase):
             executable_path=excutable_path, visible=visible, wait_time=wait_time)
 
     def get_prize_table(self):
-        element = self.__get_element(
+        element = self._get_element(
             By.XPATH, '//*[@id="RaceResult"]/div[1]/div/div[1]/div[7]/table')
         dfs = pd.read_html(element.get_attribute('outerHTML'))
         tmp = dfs[0]
