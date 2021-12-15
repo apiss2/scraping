@@ -22,7 +22,7 @@ class OddsScraper(NetkeirinSeleniumScraperBase):
     オッズをスクレイピングするクラス
     '''
 
-    def __init__(self, excutable_path, visible, wait_time):
+    def __init__(self, excutable_path, visible=False, wait_time=10):
         super().__init__(
             base_url='https://keirin.netkeiba.com/race/odds/?race_id={}',
             executable_path=excutable_path, visible=visible, wait_time=wait_time)
@@ -164,7 +164,7 @@ class PrizeScraper(NetkeirinSeleniumScraperBase):
     '''
     # TODO: SoupScraperBaseで実装可能か検討
 
-    def __init__(self, excutable_path, visible, wait_time):
+    def __init__(self, excutable_path, visible=False, wait_time=10):
         super().__init__(
             base_url='https://keirin.netkeiba.com/race/result/?race_id={}',
             executable_path=excutable_path, visible=visible, wait_time=wait_time)
