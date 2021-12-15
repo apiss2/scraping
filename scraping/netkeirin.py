@@ -1,11 +1,11 @@
-import time
 import re
+import time
 
 import pandas as pd
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.select import Select
 
-from .base import SeleniumScraperBase
+from .base import SeleniumScraperBase, SoupScraperBase
 
 
 class NetkeirinSeleniumScraperBase(SeleniumScraperBase):
@@ -15,6 +15,15 @@ class NetkeirinSeleniumScraperBase(SeleniumScraperBase):
 
     def visit_page(self, race_id):
         self.driver.get(self.base_url.format(race_id))
+
+
+class NetkeirinSoupScraperBase(SoupScraperBase):
+    def __init__(self, base_url):
+        self.base_url = base_url
+        self.soup = None
+
+    def get_soup(self, race_id):
+        self.soup = self._get_soup(self.base_url.format(race_id))
 
 
 class OddsScraper(NetkeirinSeleniumScraperBase):
@@ -158,21 +167,32 @@ class OddsScraper(NetkeirinSeleniumScraperBase):
         return rentan_df
 
 
-class PrizeScraper(NetkeirinSeleniumScraperBase):
+class DatabaseScraper(NetkeirinSoupScraperBase):
     '''
-    払い戻し金額をスクレイピングするクラス
+    Databaseから情報を取得するクラス
     '''
-    # TODO: SoupScraperBaseで実装可能か検討
 
-    def __init__(self, excutable_path, visible=False, wait_time=10):
+    def __init__(self):
         super().__init__(
-            base_url='https://keirin.netkeiba.com/race/result/?race_id={}',
-            executable_path=excutable_path, visible=visible, wait_time=wait_time)
+            base_url='https://keirin.netkeiba.com/db/result/?race_id={}')
+
+    def get_main_table(self):
+        assert self.soup is not None
+        tables = self.soup.find_all('table')
+        rows = tables[0].find_all('tr')
+        data = [[col.text.replace('\n', '').replace('(個人情報)', '').split(
+            'お気に入り')[0] for col in row.findAll(['td', 'th'])] for row in rows]
+        df = pd.DataFrame(data[1:], columns=data[0])
+        df['着'] = df['着'].apply(lambda x: x.replace('着', ''))
+        return df
 
     def get_prize_table(self):
-        element = self._get_element(
-            By.XPATH, '//*[@id="RaceResult"]/div[1]/div/div[1]/div[7]/table')
-        dfs = pd.read_html(element.get_attribute('outerHTML'))
-        tmp = dfs[0]
-        tmp.columns = ['ticket_type', 'combination', 'price', 'none']
-        return tmp.iloc[:, :3]
+        assert self.soup is not None
+        tables = self.soup.find_all('table')
+        rows = tables[1].find_all('tr')
+        data = [[col.text.replace('\n', '') for col in row.findAll(
+            ['td', 'th'])] for row in rows]
+        data = [content if len(content) == 4 else [
+            'ワイド']+content for content in data]
+        df = pd.DataFrame(data, columns=['券種', '組合せ', '払戻金額', '人気'])
+        return df
