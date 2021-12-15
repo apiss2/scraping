@@ -96,7 +96,7 @@ class OddsScraper(NetkeirinSeleniumScraperBase):
         renpuku_list = list()
         for first in range(1, select.options.__len__() + 1):
             select.select_by_value(f'{first - 1}')
-            time.sleep(0.5)
+            time.sleep(sleep_time)
             element = self._get_element(
                 By.XPATH, '//*[@id="root-app"]/div[1]/article/div[2]/div')
             dfs = pd.read_html(element.get_attribute('outerHTML'))
@@ -124,7 +124,7 @@ class OddsScraper(NetkeirinSeleniumScraperBase):
         renpuku_df = renpuku_df.drop_duplicates().reset_index(drop=True)
         return renpuku_df
 
-    def get_3rentan_odds_table(self):
+    def get_3rentan_odds_table(self, sleep_time=0.2):
         # 3連単
         self._click_element(
             By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[1]/nav/ul/li[1]/button')
@@ -135,7 +135,7 @@ class OddsScraper(NetkeirinSeleniumScraperBase):
         rentan_list = list()
         for first in range(1, select.options.__len__() + 1):
             select.select_by_value(f'{first - 1}')
-            time.sleep(0.5)
+            time.sleep(sleep_time)
             element = self._get_element(
                 By.XPATH, '//*[@id="root-app"]/div[1]/article/div[2]/div')
             dfs = pd.read_html(element.get_attribute('outerHTML'))
