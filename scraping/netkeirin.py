@@ -195,4 +195,6 @@ class DatabaseScraper(NetkeirinSoupScraperBase):
         data = [content if len(content) == 4 else [
             'ワイド']+content for content in data]
         df = pd.DataFrame(data, columns=['券種', '組合せ', '払戻金額', '人気'])
+        df['人気'] = df['人気'].apply(lambda x: x.replace('人気', ''))
+        df['払戻金額'] = df['払戻金額'].apply(lambda x: int(x.replace('円', '').replace(',', '')))
         return df
