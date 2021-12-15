@@ -26,7 +26,7 @@ class NetkeibaSoupScraperBase(SoupScraperBase):
         self.soup = None
 
     def get_soup(self, race_id):
-        self.soup = self.__get_soup(self.base_url.format(race_id))
+        self.soup = self._get_soup(self.base_url.format(race_id), encoding='EUC-JP')
 
 
 class DatabaseScraper(NetkeibaSoupScraperBase):
@@ -43,8 +43,10 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
 
     def get_main_df(self) -> pd.DataFrame:
         assert self.soup is not None
-        rows = self.soup.find('table', attrs={"class": "race_table_01"}).find_all('tr')
-        data = [[col.text.replace('\n', '') for col in row.findAll(['td', 'th'])] for row in rows]
+        rows = self.soup.find(
+            'table', attrs={"class": "race_table_01"}).find_all('tr')
+        data = [[col.text.replace('\n', '') for col in row.findAll(
+            ['td', 'th'])] for row in rows]
         main_df = pd.DataFrame(data[1:], columns=data[0])[self.MAIN_DF_COLUMNS]
         return main_df
 
@@ -65,10 +67,13 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
 
     def get_race_info(self) -> dict:
         # レース情報のスクレイピング
-        race_name = self.soup.find("dl", attrs={"class": "racedata fc"}).find('h1').text
+        race_name = self.soup.find(
+            "dl", attrs={"class": "racedata fc"}).find('h1').text
         race_info_list = [race_name]
-        data_intro = self.soup.find("div", attrs={"class": "data_intro"}).find_all("p")
-        race_info_list += data_intro[0].find('span').text.replace('\xa0', '').split('/')
+        data_intro = self.soup.find(
+            "div", attrs={"class": "data_intro"}).find_all("p")
+        race_info_list += data_intro[0].find(
+            'span').text.replace('\xa0', '').split('/')
         race_info_list += data_intro[1].text.replace('\xa0', '').split(' ')
         return self.__parse_race_info(race_info_list)
 
@@ -91,8 +96,10 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
         race_info['開催日'] = day_n[0]
         race_info['開催会場'] = racecourse
         # 条件
-        s = race_info_list[7] if len(race_info_list) == 8 else race_info_list[7] + race_info_list[8]
-        sep = s.find('[') if (s.find('[') != -1) and (s.find('[') < s.find('(')) else s.find('(')
+        s = race_info_list[7] if len(
+            race_info_list) == 8 else race_info_list[7] + race_info_list[8]
+        sep = s.find('[') if (s.find(
+            '[') != -1) and (s.find('[') < s.find('(')) else s.find('(')
         # TODO: スクレイピング時点でレース条件に関する詳細区分を行う
         race_info['レース条件_1'] = s[:sep]
         race_info['レース条件_2'] = s[sep:]
@@ -142,26 +149,27 @@ class RaceidScraper(NetkeibaSoupScraperBase):
 
 
 class OddsScraper(NetkeibaSeleniumScraperBase):
-    def __init__(self, executable_path, visible, wait_time):
+    def __init__(self, executable_path, visible=False, wait_time=10):
         super().__init__(
             base_url='https://race.netkeiba.com/odds/index.html?race_id={}&rf=race_submenu',
             executable_path=executable_path, visible=visible, wait_time=wait_time)
 
     def get_tansho_odds_table(self) -> pd.DataFrame:
         # 単勝/複勝
-        self.__click_element(By.ID, "odds_navi_b1")
+        self._click_element(By.ID, "odds_navi_b1")
         tansho_df = self.__get_tanpuku_odds_table(0)
         return tansho_df
 
     def get_fukusho_odds_table(self) -> pd.DataFrame:
         # 複勝
-        self.__click_element(By.ID, "odds_navi_b1")
+        self._click_element(By.ID, "odds_navi_b1")
         tansho_df = self.__get_tanpuku_odds_table(1)
         return tansho_df
 
     def __get_tanpuku_odds_table(self, idx) -> pd.DataFrame:
         # 0なら単勝、1なら複勝のテーブルを取得
-        elements = self.__get_elements(By.CLASS_NAME, "RaceOdds_HorseList_Table")
+        elements = self._get_elements(
+            By.CLASS_NAME, "RaceOdds_HorseList_Table")
         dfs = pd.read_html(elements[idx].get_attribute('outerHTML'))
         tanpuku_df = dfs[0][['馬番', 'オッズ']]
         tanpuku_df.columns = ['First', 'Odds']
@@ -169,13 +177,13 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
 
     def get_wakuren_odds_table(self) -> pd.DataFrame:
         # 枠連
-        self.__click_element(By.ID, "odds_navi_b3")
+        self._click_element(By.ID, "odds_navi_b3")
         raise NotImplementedError
 
     def get_umaren_odds_table(self) -> pd.DataFrame:
         # 馬連
-        self.__click_element(By.ID, "odds_navi_b4")
-        element = self.__get_element(By.CLASS_NAME, "GraphOdds")
+        self._click_element(By.ID, "odds_navi_b4")
+        element = self._get_element(By.CLASS_NAME, "GraphOdds")
         dfs = pd.read_html(element.get_attribute('outerHTML'))
         first_list = [int(df.columns.values[0]) for df in dfs]
         umaren_df_list = [df.iloc[:, :2] for df in dfs]
@@ -188,13 +196,13 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
 
     def get_wide_odds_table(self) -> pd.DataFrame:
         # ワイド
-        self.__click_element(By.ID, "odds_navi_b5")
+        self._click_element(By.ID, "odds_navi_b5")
         raise NotImplementedError
 
     def get_umatan_odds_table(self) -> pd.DataFrame:
         # 馬単
-        self.__click_element(By.ID, "odds_navi_b6")
-        element = self.__get_element(By.CLASS_NAME, "GraphOdds")
+        self._click_element(By.ID, "odds_navi_b6")
+        element = self._get_element(By.CLASS_NAME, "GraphOdds")
         dfs = pd.read_html(element.get_attribute('outerHTML'))
         first_list = [int(df.columns.values[0]) for df in dfs]
         batan_df_list = [df.iloc[:, :2] for df in dfs]
@@ -207,8 +215,8 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
 
     def get_3renpuku_odds_table(self, sleep_time=0.2) -> pd.DataFrame:
         # 3連複
-        self.__click_element(By.ID, "odds_navi_b7")
-        dropdown = self.__get_element(By.ID, "list_select_horse")
+        self._click_element(By.ID, "odds_navi_b7")
+        dropdown = self._get_element(By.ID, "list_select_horse")
         select = Select(dropdown)
         num = len(select.options)
         # スクレイピング
@@ -216,11 +224,11 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
         for axis_horse_number in range(1, num):
             if axis_horse_number > 1:
                 # 軸馬の選択・変更 dropdown select状態にする
-                dropdown = self.__get_element(By.ID, "list_select_horse")
+                dropdown = self._get_element(By.ID, "list_select_horse")
                 select = Select(dropdown)
                 select.select_by_value(str(axis_horse_number))
             time.sleep(sleep_time)
-            element = self.__get_element(By.CLASS_NAME, "GraphOdds")
+            element = self._get_element(By.CLASS_NAME, "GraphOdds")
             dfs = pd.read_html(element.get_attribute('outerHTML'))
             dfs_list.append(dfs)
         # 整形
@@ -233,7 +241,8 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
                 renpuku_df_list[i].columns = ['Third', 'Odds']
                 renpuku_df_list[i]['First'] = uma
                 renpuku_df_list[i]['Second'] = second_list[i]
-                renpuku_df_list[i] = renpuku_df_list[i][['First', 'Second', 'Third', 'Odds']]
+                renpuku_df_list[i] = renpuku_df_list[i][[
+                    'First', 'Second', 'Third', 'Odds']]
             renpuku_concat_df_list.append(pd.concat(renpuku_df_list, axis=0))
         renpuku_df = pd.concat(renpuku_concat_df_list, axis=0)
         # 着順をソートして重複を削除
@@ -245,8 +254,8 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
 
     def get_3rentan_odds_table(self, sleep_time=0.2) -> pd.DataFrame:
         # 3連単
-        self.__click_element(By.ID, "odds_navi_b8")
-        dropdown = self.__get_element(By.ID, "list_select_horse")
+        self._click_element(By.ID, "odds_navi_b8")
+        dropdown = self._get_element(By.ID, "list_select_horse")
         select = Select(dropdown)
         num = len(select.options)
         # スクレイピング
@@ -254,11 +263,11 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
         for axis_horse_number in range(1, num):
             if axis_horse_number > 1:
                 # 軸馬の選択・変更 dropdown select状態にする
-                dropdown = self.__get_element(By.ID, "list_select_horse")
+                dropdown = self._get_element(By.ID, "list_select_horse")
                 select = Select(dropdown)
                 select.select_by_value(str(axis_horse_number))
             time.sleep(sleep_time)
-            element = self.__get_element(By.CLASS_NAME, "GraphOdds")
+            element = self._get_element(By.CLASS_NAME, "GraphOdds")
             dfs = pd.read_html(element.get_attribute('outerHTML'))
             dfs_list.append(dfs)
         # 整形
@@ -271,7 +280,8 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
                 tan3_df_list[i].columns = ['Third', 'Odds']
                 tan3_df_list[i]['First'] = uma
                 tan3_df_list[i]['Second'] = second_list[i]
-                tan3_df_list[i] = tan3_df_list[i][['First', 'Second', 'Third', 'Odds']]
+                tan3_df_list[i] = tan3_df_list[i][[
+                    'First', 'Second', 'Third', 'Odds']]
             tan3concat_df_list.append(pd.concat(tan3_df_list, axis=0))
         tan3_df = pd.concat(tan3concat_df_list, axis=0)
         return tan3_df

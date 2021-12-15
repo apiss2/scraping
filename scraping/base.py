@@ -12,11 +12,13 @@ class SeleniumScraperBase(ABC):
     '''
     動的なサイトをスクレイピングする場合は、このクラスを継承。
     '''
+
     def __init__(self, executable_path, visible=False, wait_time=10):
         self.option = ChromeOptions()
         if not visible:
             self.option.add_argument('--headless')
-        self.driver = Chrome(executable_path=executable_path, options=self.option)
+        self.driver = Chrome(
+            executable_path=executable_path, options=self.option)
         self.driver.implicitly_wait(wait_time)
         self.wait = WebDriverWait(self.driver, wait_time)
 
@@ -27,14 +29,14 @@ class SeleniumScraperBase(ABC):
     def visit_page(self):
         pass
 
-    def __get_element(self, by, text):
+    def _get_element(self, by, text):
         return self.wait.until(visibility_of_element_located((by, text)))
 
-    def __get_elements(self, by, text):
+    def _get_elements(self, by, text):
         return self.wait.until(visibility_of_all_elements_located((by, text)))
 
-    def __click_element(self, by, text):
-        self.__get_element(by, text).click()
+    def _click_element(self, by, text):
+        self._get_element(by, text).click()
 
 
 class SoupScraperBase(ABC):
@@ -43,19 +45,20 @@ class SoupScraperBase(ABC):
     '''
 
     @abstractmethod
-    def get_soup(self):
+    def get_soup(self, encoding=None):
         pass
 
-    def __get_soup(self, url):
+    def _get_soup(self, url, encoding=None):
         html = requests.get(url)
-        html.encoding = "EUC-JP"
+        if encoding is not None:
+            html.encoding = encoding
         soup = BeautifulSoup(html.text, "html.parser")
         return soup
 
-    def __get_element(self, soup, tag, by, text):
+    def _get_element(self, soup, tag, by, text):
         attrs = {by: text} if by is not None else {}
         return soup.find(tag, attrs=attrs)
 
-    def __get_elements(self, soup, tag, by=None, text=None):
+    def _get_elements(self, soup, tag, by=None, text=None):
         attrs = {by: text} if by is not None else {}
         return soup.find_all(tag, attrs=attrs)
