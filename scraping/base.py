@@ -45,12 +45,13 @@ class SoupScraperBase(ABC):
     '''
 
     @abstractmethod
-    def get_soup(self):
+    def get_soup(self, encoding=None):
         pass
 
-    def _get_soup(self, url):
+    def _get_soup(self, url, encoding=None):
         html = requests.get(url)
-        html.encoding = "EUC-JP"
+        if encoding is not None:
+            html.encoding = encoding
         soup = BeautifulSoup(html.text, "html.parser")
         return soup
 

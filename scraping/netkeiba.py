@@ -26,7 +26,7 @@ class NetkeibaSoupScraperBase(SoupScraperBase):
         self.soup = None
 
     def get_soup(self, race_id):
-        self.soup = self._get_soup(self.base_url.format(race_id))
+        self.soup = self._get_soup(self.base_url.format(race_id), encoding='EUC-JP')
 
 
 class DatabaseScraper(NetkeibaSoupScraperBase):
