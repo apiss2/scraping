@@ -43,8 +43,10 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
 
     def get_main_df(self) -> pd.DataFrame:
         assert self.soup is not None
-        rows = self.soup.find('table', attrs={"class": "race_table_01"}).find_all('tr')
-        data = [[col.text.replace('\n', '') for col in row.findAll(['td', 'th'])] for row in rows]
+        rows = self.soup.find(
+            'table', attrs={"class": "race_table_01"}).find_all('tr')
+        data = [[col.text.replace('\n', '') for col in row.findAll(
+            ['td', 'th'])] for row in rows]
         main_df = pd.DataFrame(data[1:], columns=data[0])[self.MAIN_DF_COLUMNS]
         return main_df
 
@@ -65,10 +67,13 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
 
     def get_race_info(self) -> dict:
         # レース情報のスクレイピング
-        race_name = self.soup.find("dl", attrs={"class": "racedata fc"}).find('h1').text
+        race_name = self.soup.find(
+            "dl", attrs={"class": "racedata fc"}).find('h1').text
         race_info_list = [race_name]
-        data_intro = self.soup.find("div", attrs={"class": "data_intro"}).find_all("p")
-        race_info_list += data_intro[0].find('span').text.replace('\xa0', '').split('/')
+        data_intro = self.soup.find(
+            "div", attrs={"class": "data_intro"}).find_all("p")
+        race_info_list += data_intro[0].find(
+            'span').text.replace('\xa0', '').split('/')
         race_info_list += data_intro[1].text.replace('\xa0', '').split(' ')
         return self.__parse_race_info(race_info_list)
 
@@ -91,8 +96,10 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
         race_info['開催日'] = day_n[0]
         race_info['開催会場'] = racecourse
         # 条件
-        s = race_info_list[7] if len(race_info_list) == 8 else race_info_list[7] + race_info_list[8]
-        sep = s.find('[') if (s.find('[') != -1) and (s.find('[') < s.find('(')) else s.find('(')
+        s = race_info_list[7] if len(
+            race_info_list) == 8 else race_info_list[7] + race_info_list[8]
+        sep = s.find('[') if (s.find(
+            '[') != -1) and (s.find('[') < s.find('(')) else s.find('(')
         # TODO: スクレイピング時点でレース条件に関する詳細区分を行う
         race_info['レース条件_1'] = s[:sep]
         race_info['レース条件_2'] = s[sep:]
@@ -161,7 +168,8 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
 
     def __get_tanpuku_odds_table(self, idx) -> pd.DataFrame:
         # 0なら単勝、1なら複勝のテーブルを取得
-        elements = self.__get_elements(By.CLASS_NAME, "RaceOdds_HorseList_Table")
+        elements = self.__get_elements(
+            By.CLASS_NAME, "RaceOdds_HorseList_Table")
         dfs = pd.read_html(elements[idx].get_attribute('outerHTML'))
         tanpuku_df = dfs[0][['馬番', 'オッズ']]
         tanpuku_df.columns = ['First', 'Odds']
@@ -233,7 +241,8 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
                 renpuku_df_list[i].columns = ['Third', 'Odds']
                 renpuku_df_list[i]['First'] = uma
                 renpuku_df_list[i]['Second'] = second_list[i]
-                renpuku_df_list[i] = renpuku_df_list[i][['First', 'Second', 'Third', 'Odds']]
+                renpuku_df_list[i] = renpuku_df_list[i][[
+                    'First', 'Second', 'Third', 'Odds']]
             renpuku_concat_df_list.append(pd.concat(renpuku_df_list, axis=0))
         renpuku_df = pd.concat(renpuku_concat_df_list, axis=0)
         # 着順をソートして重複を削除
@@ -271,7 +280,8 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
                 tan3_df_list[i].columns = ['Third', 'Odds']
                 tan3_df_list[i]['First'] = uma
                 tan3_df_list[i]['Second'] = second_list[i]
-                tan3_df_list[i] = tan3_df_list[i][['First', 'Second', 'Third', 'Odds']]
+                tan3_df_list[i] = tan3_df_list[i][[
+                    'First', 'Second', 'Third', 'Odds']]
             tan3concat_df_list.append(pd.concat(tan3_df_list, axis=0))
         tan3_df = pd.concat(tan3concat_df_list, axis=0)
         return tan3_df

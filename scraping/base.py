@@ -12,11 +12,13 @@ class SeleniumScraperBase(ABC):
     '''
     動的なサイトをスクレイピングする場合は、このクラスを継承。
     '''
+
     def __init__(self, executable_path, visible=False, wait_time=10):
         self.option = ChromeOptions()
         if not visible:
             self.option.add_argument('--headless')
-        self.driver = Chrome(executable_path=executable_path, options=self.option)
+        self.driver = Chrome(
+            executable_path=executable_path, options=self.option)
         self.driver.implicitly_wait(wait_time)
         self.wait = WebDriverWait(self.driver, wait_time)
 

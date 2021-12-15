@@ -21,6 +21,7 @@ class OddsScraper(NetkeirinSeleniumScraperBase):
     '''
     オッズをスクレイピングするクラス
     '''
+
     def __init__(self, excutable_path, visible, wait_time):
         super().__init__(
             base_url='https://keirin.netkeiba.com/race/odds/?race_id={}',
@@ -44,14 +45,16 @@ class OddsScraper(NetkeirinSeleniumScraperBase):
             By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[1]/nav/ul/li[4]/button')
         self.__click_element(
             By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[2]/nav/ul/li[2]/button')
-        element = self.__get_element(By.XPATH, '//*[@id="root-app"]/div[1]/article/div[1]')
+        element = self.__get_element(
+            By.XPATH, '//*[@id="root-app"]/div[1]/article/div[1]')
         dfs = pd.read_html(element.get_attribute('outerHTML'))
         target_df = dfs[2].copy().iloc[:, :-1]
         target_df.columns = [i + 1 for i in range(len(target_df))]
         target_df['Second'] = [i + 2 for i in range(len(target_df))]
         df_list = list()
         for first in range(1, len(target_df) + 1):
-            tmp = target_df[['Second', first]].copy().rename(columns={first: 'Odds'})
+            tmp = target_df[['Second', first]].copy().rename(
+                columns={first: 'Odds'})
             tmp['First'] = first
             df_list.append(tmp[['First', 'Second', 'Odds']])
         shafuku_df = pd.concat(df_list).dropna().reset_index(drop=True)
@@ -67,14 +70,16 @@ class OddsScraper(NetkeirinSeleniumScraperBase):
             By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[1]/nav/ul/li[2]/button')
         self.__click_element(
             By.XPATH, '//*[@id="root-app"]/div[1]/div[1]/div[2]/nav/ul/li[2]/button')
-        element = self.__get_element(By.XPATH, '//*[@id="root-app"]/div[1]/article/div[1]')
+        element = self.__get_element(
+            By.XPATH, '//*[@id="root-app"]/div[1]/article/div[1]')
         dfs = pd.read_html(element.get_attribute('outerHTML'))
         target_df = dfs[2].copy()
         target_df.columns = [i + 1 for i in range(len(target_df))]
         target_df['Second'] = [i + 1 for i in range(len(target_df))]
         df_list = list()
         for first in range(1, len(target_df) + 1):
-            tmp = target_df[['Second', first]].copy().rename(columns={first: 'Odds'})
+            tmp = target_df[['Second', first]].copy().rename(
+                columns={first: 'Odds'})
             tmp['First'] = first
             df_list.append(tmp[['First', 'Second', 'Odds']])
         shatan_df = pd.concat(df_list).dropna().reset_index(drop=True)
@@ -92,11 +97,13 @@ class OddsScraper(NetkeirinSeleniumScraperBase):
         for first in range(1, select.options.__len__() + 1):
             select.select_by_value(f'{first - 1}')
             time.sleep(0.5)
-            element = self.__get_element(By.XPATH, '//*[@id="root-app"]/div[1]/article/div[2]/div')
+            element = self.__get_element(
+                By.XPATH, '//*[@id="root-app"]/div[1]/article/div[2]/div')
             dfs = pd.read_html(element.get_attribute('outerHTML'))
             target_df = dfs[2].copy().iloc[:, :-1]
             third_list = [int(i) for i in list(dfs[1].columns[1][3:])]
-            second_list = [int(re.search(r'\d', i).group())for i in target_df.columns]
+            second_list = [int(re.search(r'\d', i).group())
+                           for i in target_df.columns]
             target_df.columns = second_list
             target_df.index = third_list
             target_df['First'] = first
@@ -105,8 +112,10 @@ class OddsScraper(NetkeirinSeleniumScraperBase):
                 tmp = target_df[['First', i]].rename(columns={i: 'Odds'})
                 tmp['Second'] = i
                 tmp_list.append(tmp)
-            target_df = pd.concat(tmp_list).reset_index().rename(columns={'index': 'Third'})
-            target_df = target_df[['First', 'Second', 'Third', 'Odds']].dropna()
+            target_df = pd.concat(tmp_list).reset_index().rename(
+                columns={'index': 'Third'})
+            target_df = target_df[[
+                'First', 'Second', 'Third', 'Odds']].dropna()
             renpuku_list.append(target_df)
         renpuku_df = pd.concat(renpuku_list).reset_index(drop=True)
         values = renpuku_df.iloc[:, :3].values
@@ -127,7 +136,8 @@ class OddsScraper(NetkeirinSeleniumScraperBase):
         for first in range(1, select.options.__len__() + 1):
             select.select_by_value(f'{first - 1}')
             time.sleep(0.5)
-            element = self.__get_element(By.XPATH, '//*[@id="root-app"]/div[1]/article/div[2]/div')
+            element = self.__get_element(
+                By.XPATH, '//*[@id="root-app"]/div[1]/article/div[2]/div')
             dfs = pd.read_html(element.get_attribute('outerHTML'))
             target_df = dfs[2].copy()
             uma_list = [int(i) for i in list(dfs[1].columns[1][3:])]
@@ -139,8 +149,10 @@ class OddsScraper(NetkeirinSeleniumScraperBase):
                 tmp = target_df[['First', i]].rename(columns={i: 'Odds'})
                 tmp['Second'] = i
                 tmp_list.append(tmp)
-            target_df = pd.concat(tmp_list).reset_index().rename(columns={'index': 'Third'})
-            target_df = target_df[['First', 'Second', 'Third', 'Odds']].dropna()
+            target_df = pd.concat(tmp_list).reset_index().rename(
+                columns={'index': 'Third'})
+            target_df = target_df[[
+                'First', 'Second', 'Third', 'Odds']].dropna()
             rentan_list.append(target_df)
         rentan_df = pd.concat(rentan_list).reset_index(drop=True)
         return rentan_df
@@ -151,13 +163,15 @@ class PrizeScraper(NetkeirinSeleniumScraperBase):
     払い戻し金額をスクレイピングするクラス
     '''
     # TODO: SoupScraperBaseで実装可能か検討
+
     def __init__(self, excutable_path, visible, wait_time):
         super().__init__(
             base_url='https://keirin.netkeiba.com/race/result/?race_id={}',
             executable_path=excutable_path, visible=visible, wait_time=wait_time)
 
     def get_prize_table(self):
-        element = self.__get_element(By.XPATH, '//*[@id="RaceResult"]/div[1]/div/div[1]/div[7]/table')
+        element = self.__get_element(
+            By.XPATH, '//*[@id="RaceResult"]/div[1]/div/div[1]/div[7]/table')
         dfs = pd.read_html(element.get_attribute('outerHTML'))
         tmp = dfs[0]
         tmp.columns = ['ticket_type', 'combination', 'price', 'none']
