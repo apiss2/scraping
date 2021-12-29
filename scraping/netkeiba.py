@@ -154,15 +154,17 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
             base_url='https://race.netkeiba.com/odds/index.html?race_id={}&rf=race_submenu',
             executable_path=executable_path, visible=visible, wait_time=wait_time)
 
-    def get_tansho_odds_table(self) -> pd.DataFrame:
+    def get_tansho_odds_table(self, sleep_time=0.2) -> pd.DataFrame:
         # 単勝/複勝
         self._click_element(By.ID, "odds_navi_b1")
+        time.sleep(sleep_time)
         tansho_df = self.__get_tanpuku_odds_table(0)
         return tansho_df
 
-    def get_fukusho_odds_table(self) -> pd.DataFrame:
+    def get_fukusho_odds_table(self, sleep_time=0.2) -> pd.DataFrame:
         # 複勝
         self._click_element(By.ID, "odds_navi_b1")
+        time.sleep(sleep_time)
         tansho_df = self.__get_tanpuku_odds_table(1)
         return tansho_df
 
@@ -180,9 +182,10 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
         self._click_element(By.ID, "odds_navi_b3")
         raise NotImplementedError
 
-    def get_umaren_odds_table(self) -> pd.DataFrame:
+    def get_umaren_odds_table(self, sleep_time) -> pd.DataFrame:
         # 馬連
         self._click_element(By.ID, "odds_navi_b4")
+        time.sleep(sleep_time)
         element = self._get_element(By.CLASS_NAME, "GraphOdds")
         dfs = pd.read_html(element.get_attribute('outerHTML'))
         first_list = [int(df.columns.values[0]) for df in dfs]
@@ -199,9 +202,10 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
         self._click_element(By.ID, "odds_navi_b5")
         raise NotImplementedError
 
-    def get_umatan_odds_table(self) -> pd.DataFrame:
+    def get_umatan_odds_table(self, sleep_time=0.2) -> pd.DataFrame:
         # 馬単
         self._click_element(By.ID, "odds_navi_b6")
+        time.sleep(sleep_time)
         element = self._get_element(By.CLASS_NAME, "GraphOdds")
         dfs = pd.read_html(element.get_attribute('outerHTML'))
         first_list = [int(df.columns.values[0]) for df in dfs]
