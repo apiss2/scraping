@@ -289,3 +289,94 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
             tan3concat_df_list.append(pd.concat(tan3_df_list, axis=0))
         tan3_df = pd.concat(tan3concat_df_list, axis=0)
         return tan3_df
+
+
+class AutoBuyer(SeleniumScraperBase):
+    BAKEN_TYPE = ['単勝', '複勝', '枠連', '馬連', 'ワイド', '馬単', '３連複', '３連単']
+
+    def __init__(self, executable_path, demo=True, wait_time=10):
+        super().__init__(executable_path, visible=True, wait_time=wait_time)
+        if demo:
+            self.url = 'https://www.jra.go.jp/IPAT_TAIKEN/s-pat/pw_010_i.html'
+        else:
+            self.url = 'https://www.ipat.jra.go.jp/'
+
+    def visit_page(self, inet_id, user_number, password, p_ars, sleep_time=1):
+        self.driver.get(self.url)
+        time.sleep(sleep_time)
+        self.login(inet_id, user_number, password, p_ars, sleep_time=sleep_time)
+
+
+    def login(self, inet_id, user_number, password, p_ars, sleep_time=1):
+        # INET-ID
+        element = self._get_element(By.XPATH, '//*[@id="top"]/div[3]/div/table/tbody/tr/td[2]/div/div/form/table[1]/tbody/tr/td[2]/span/input')
+        element.send_keys(str(inet_id))
+        # クリックしてページ遷移
+        self._click_element(By.XPATH, '//*[@id="top"]/div[3]/div/table/tbody/tr/td[2]/div/div/form/table[1]/tbody/tr/td[3]/p/a')
+        time.sleep(sleep_time)
+        # 加入者番号
+        element = self._get_element(By.XPATH, '//*[@id="main_area"]/div/div[1]/table/tbody/tr[1]/td[2]/span/input')
+        element.send_keys(str(user_number))
+        # 暗証番号
+        element = self._get_element(By.XPATH, '//*[@id="main_area"]/div/div[1]/table/tbody/tr[2]/td[2]/span/input')
+        element.send_keys(str(password))
+        # P-ARS番号
+        element = self._get_element(By.XPATH, '//*[@id="main_area"]/div/div[1]/table/tbody/tr[3]/td[2]/span/input')
+        element.send_keys(p_ars)
+        # クリックしてログイン
+        self._click_element(By.XPATH, '//*[@id="main_area"]/div/div[1]/table/tbody/tr[1]/td[3]/p/a')
+
+    def vote_baken_type_select(self, baken_type):
+        selector = Select(self._get_element(By.XPATH, '//*[@id="bet-basic-type"]'))
+        selector.select_by_index(self.BAKEN_TYPE.index(baken_type))
+
+    def vote_umatan_from_df(self, umatan_df):
+        for _, row in umatan_df.iterrows():
+            self.vote_umatan(
+                int(row.First), int(row.Second), int(row.Num))
+
+    def vote_rentan_from_df(self, rentan_df):
+        for _, row in rentan_df.iterrows():
+            self.vote_rentan(
+                int(row.First), int(row.Second), int(row.Third), int(row.Num))
+
+    def vote_umatan(self, first, second, num, sleep_time=0.2):
+        # 1着入力
+        self._click_element(By.XPATH,
+            f'//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/div/div/span/div/span/bet-basic-exacta-basic/table/tbody/tr[{first}]/td[2]/label/span')
+        time.sleep(sleep_time)
+        # 2着入力
+        self._click_element(By.XPATH,
+            f'//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/div/div/span/div/span/bet-basic-exacta-basic/table/tbody/tr[{second}]/td[3]/label/span')
+        time.sleep(sleep_time)
+        # 購入金額入力
+        element = self._get_element(By.XPATH,
+            '//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/select-list/div/div/div[3]/div[1]/input')
+        element.clear()
+        time.sleep(0.1)
+        element.send_keys(f'{num}')
+        time.sleep(sleep_time)
+        self._click_element(By.XPATH,
+            '//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/select-list/div/div/div[3]/div[4]/button[2]')
+        time.sleep(sleep_time)
+
+    def vote_rentan(self, first, second, third, num, sleep_time=0.2):
+        self._click_element(
+            By.XPATH, f'//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/div/div/span/div/span/bet-basic-trifecta-basic/table/tbody/tr[{first}]/td[2]/label/span')
+        time.sleep(sleep_time)
+        self._click_element(
+            By.XPATH, f'//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/div/div/span/div/span/bet-basic-trifecta-basic/table/tbody/tr[{second}]/td[3]/label/span')
+        time.sleep(sleep_time)
+        self._click_element(
+            By.XPATH, f'//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/div/div/span/div/span/bet-basic-trifecta-basic/table/tbody/tr[{third}]/td[4]/label/span')
+        time.sleep(sleep_time)
+        element = self._get_element(
+            By.XPATH, '//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/select-list/div/div/div[3]/div[1]/input')
+        time.sleep(0.1)
+        element.clear()
+        time.sleep(0.1)
+        element.send_keys(f'{num}')
+        time.sleep(sleep_time)
+        self._click_element(
+            By.XPATH, '//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/select-list/div/div/div[3]/div[4]/button[2]')
+        time.sleep(sleep_time)
