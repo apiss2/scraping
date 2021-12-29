@@ -36,7 +36,9 @@ class SeleniumScraperBase(ABC):
         return self.wait.until(visibility_of_all_elements_located((by, text)))
 
     def _click_element(self, by, text):
-        self._get_element(by, text).click()
+        element = self._get_element(by, text)
+        self.driver.execute_script("arguments[0].scrollIntoView(false);", element)
+        element.click()
 
 
 class SoupScraperBase(ABC):
