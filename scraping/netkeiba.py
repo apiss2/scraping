@@ -85,7 +85,7 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
         race_info['周回方向'] = '右' if '右' in race_type else '左' if '右' in race_type else '不明'
         race_info['コースタイプ'] = '障害' if '障' in race_type else 'ダート' if 'ダ' in race_type else '芝'
         race_info['馬場状態'] = race_info_list[3].split(' : ')[-1]
-        race_info['コース長'] = re.findall(r'\d{4}m', race_type)[0][:-1]
+        race_info['コース長'] = re.findall(r'\d{3,4}m', race_type)[0][:-1]
         race_info['天候'] = race_info_list[2].split(' : ')[1]
         race_info['日時'] = race_info_list[5]
         race_info['発走'] = race_info_list[4].split(' : ')[1]
