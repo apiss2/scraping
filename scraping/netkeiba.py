@@ -135,7 +135,7 @@ class RaceidScraper(NetkeibaSoupScraperBase):
         today = datetime.date(year, month, 1)
         race_id_list = list()
         for _ in tqdm(range(31), leave=leave):
-            race_id_list += self.get_raceid_list_from_date(today)
+            race_id_list += self.get_raceID_list_from_date(today)
             today = today + relativedelta(days=1)
             time.sleep(sleep_time)
         return race_id_list
