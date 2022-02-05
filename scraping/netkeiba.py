@@ -22,7 +22,12 @@ class NetkeibaSeleniumScraperBase(SeleniumScraperBase):
 
 
 class NetkeibaSoupScraperBase(SoupScraperBase):
-    def __init__(self, base_url):
+    def __init__(self, base_url, user_id=None, password=None):
+        url, info = None, None
+        if (user_id is not None) and (password is not None):
+            url = "https://regist.netkeiba.com/account/?pid=login&action=auth"
+            info = {'login_id': user_id, 'pswd': password}
+        super().__init__(login_url=url, login_info=info)
         self.base_url = base_url
         self.soup = None
 
@@ -38,9 +43,12 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
     MAIN_DF_COLUMNS = [
         '着順', '枠番', '馬番', '馬名', '性齢', '斤量', '騎手',
         'タイム', '着差', '単勝', '人気', '馬体重', '調教師']
+    PLEMIUS_COLUMNS = ['ﾀｲﾑ指数', '調教ﾀｲﾑ', '厩舎ｺﾒﾝﾄ']
 
-    def __init__(self):
-        super().__init__(base_url="https://db.netkeiba.com/race/{}")
+    def __init__(self, user_id=None, password=None):
+        super().__init__(
+            base_url="https://db.netkeiba.com/race/{}",
+            user_id=user_id, password=password)
 
     def get_main_df(self) -> pd.DataFrame:
         assert self.soup is not None
@@ -48,7 +56,8 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
             'table', attrs={"class": "race_table_01"}).find_all('tr')
         data = [[col.text.replace('\n', '') for col in row.findAll(
             ['td', 'th'])] for row in rows]
-        main_df = pd.DataFrame(data[1:], columns=data[0])[self.MAIN_DF_COLUMNS]
+        cols = self.MAIN_DF_COLUMNS + self.PLEMIUS_COLUMNS if self.login else self.MAIN_DF_COLUMNS
+        main_df = pd.DataFrame(data[1:], columns=data[0])[cols]
         return main_df
 
     def get_horse_id_list(self) -> list:
@@ -137,7 +146,7 @@ class RaceidScraper(NetkeibaSoupScraperBase):
         race_id_list = list()
         for _ in tqdm(range(31), leave=leave):
             race_id_list += self.get_raceID_list_from_date(today)
-            today = today + relativedelta(days=1)
+            today = today + relativedelta.relativedelta(days=1)
             time.sleep(sleep_time)
         return race_id_list
 
