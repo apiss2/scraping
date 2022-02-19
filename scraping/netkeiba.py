@@ -192,7 +192,7 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
         self._click_element(By.ID, "odds_navi_b3")
         raise NotImplementedError
 
-    def get_umaren_odds_table(self, sleep_time) -> pd.DataFrame:
+    def get_umaren_odds_table(self, sleep_time=0.2) -> pd.DataFrame:
         # 馬連
         self._click_element(By.ID, "odds_navi_b4")
         time.sleep(sleep_time)
