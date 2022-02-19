@@ -146,7 +146,7 @@ class RaceidScraper(NetkeibaSoupScraperBase):
         race_id_list = list()
         for _ in tqdm(range(31), leave=leave):
             race_id_list += self.get_raceID_list_from_date(today)
-            today = today + relativedelta(days=1)
+            today = today + relativedelta.relativedelta(days=1)
             time.sleep(sleep_time)
         return race_id_list
 
@@ -192,7 +192,7 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
         self._click_element(By.ID, "odds_navi_b3")
         raise NotImplementedError
 
-    def get_umaren_odds_table(self, sleep_time) -> pd.DataFrame:
+    def get_umaren_odds_table(self, sleep_time=0.2) -> pd.DataFrame:
         # 馬連
         self._click_element(By.ID, "odds_navi_b4")
         time.sleep(sleep_time)
