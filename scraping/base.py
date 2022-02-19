@@ -36,23 +36,35 @@ class SeleniumScraperBase(ABC):
         return self.wait.until(visibility_of_all_elements_located((by, text)))
 
     def _click_element(self, by, text):
-        self._get_element(by, text).click()
+        element = self._get_element(by, text)
+        self.driver.execute_script("arguments[0].scrollIntoView(false);", element)
+        element.click()
 
 
 class SoupScraperBase(ABC):
     '''
     静的なサイトをスクレイピングする場合は、このクラスを継承。
     '''
+    def __init__(self, login_url: str = None, login_info: dict = None):
+        self.login = False
+        if (login_info is not None) and (login_url is not None):
+            self.login = True
+            self.session = requests.session()
+            self.session.post(login_url, data=login_info)
 
     @abstractmethod
     def get_soup(self, encoding=None):
         pass
 
     def _get_soup(self, url, encoding=None):
-        html = requests.get(url)
+        if self.login:
+            html = self.session.get(url)
+        else:
+            html = requests.get(url)
         if encoding is not None:
             html.encoding = encoding
-        soup = BeautifulSoup(html.text, "html.parser")
+        content = html.content if self.login else html.text
+        soup = BeautifulSoup(content, "html.parser")
         return soup
 
     def _get_element(self, soup, tag, by, text):
