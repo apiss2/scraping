@@ -3,6 +3,7 @@ import re
 import time
 
 import pandas as pd
+import requests
 from bs4 import BeautifulSoup
 from dateutil import relativedelta
 from selenium.webdriver.common.by import By
@@ -123,6 +124,19 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
         return pd.DataFrame(data)
 
 
+class UmabashiraScraper(object):
+    def __init__(self):
+        self.base_url = 'http://jiro8.sakura.ne.jp/index.php?code={}'
+
+    def get_umabashira(self, race_id):
+        code = str(race_id)[2:]
+        html = requests.get(self.base_url.format(code))
+        html.encoding = 'cp932'
+        dfs = pd.read_html(html.text)
+        # TODO: 整形するコード書いておく
+        return dfs[12]
+
+
 class RaceidScraper(NetkeibaSoupScraperBase):
     def __init__(self):
         super().__init__(base_url="https://db.netkeiba.com/race/list/{}")
@@ -192,7 +206,7 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
         self._click_element(By.ID, "odds_navi_b3")
         raise NotImplementedError
 
-    def get_umaren_odds_table(self, sleep_time) -> pd.DataFrame:
+    def get_umaren_odds_table(self, sleep_time=0.2) -> pd.DataFrame:
         # 馬連
         self._click_element(By.ID, "odds_navi_b4")
         time.sleep(sleep_time)
