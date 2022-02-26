@@ -3,6 +3,7 @@ import re
 import time
 
 import pandas as pd
+import requests
 from bs4 import BeautifulSoup
 from dateutil import relativedelta
 from selenium.webdriver.common.by import By
@@ -94,7 +95,7 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
         race_info['周回方向'] = '右' if '右' in race_type else '左' if '右' in race_type else '不明'
         race_info['コースタイプ'] = '障害' if '障' in race_type else 'ダート' if 'ダ' in race_type else '芝'
         race_info['馬場状態'] = race_info_list[3].split(' : ')[-1]
-        race_info['コース長'] = re.findall(r'\d{4}m', race_type)[0][:-1]
+        race_info['コース長'] = re.findall(r'\d{3,4}m', race_type)[0][:-1]
         race_info['天候'] = race_info_list[2].split(' : ')[1]
         race_info['日時'] = race_info_list[5]
         race_info['発走'] = race_info_list[4].split(' : ')[1]
@@ -121,6 +122,19 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
         data = [[re.sub(r"\<.+?\>", "", str(col).replace('<br/>', 'br')).replace(
             '\n', '') for col in row.findAll(['td', 'th'])] for row in rows]
         return pd.DataFrame(data)
+
+
+class UmabashiraScraper(object):
+    def __init__(self):
+        self.base_url = 'http://jiro8.sakura.ne.jp/index.php?code={}'
+
+    def get_umabashira(self, race_id):
+        code = str(race_id)[2:]
+        html = requests.get(self.base_url.format(code))
+        html.encoding = 'cp932'
+        dfs = pd.read_html(html.text)
+        # TODO: 整形するコード書いておく
+        return dfs[12]
 
 
 class RaceidScraper(NetkeibaSoupScraperBase):
