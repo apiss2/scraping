@@ -142,6 +142,7 @@ class RaceidScraper(NetkeibaSoupScraperBase):
         super().__init__(base_url="https://db.netkeiba.com/race/list/{}")
 
     def get_raceID_list_from_date(self, today: datetime.date) -> list:
+        # TODO: 最新週のデータは存在しないので、判定して弾く機能を追加する
         date = f'{today.year:04}{today.month:02}{today.day:02}'
         self.get_soup(date)
         race_list = self.soup.find('div', attrs={"class": 'race_list fc'})
