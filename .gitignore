@@ -128,4 +128,5 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-chromedriver_win32/*
+chromedriver_win32/
+.vscode/

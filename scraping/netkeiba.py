@@ -14,6 +14,7 @@ from .base import SeleniumScraperBase, SoupScraperBase
 
 
 class NetkeibaSeleniumScraperBase(SeleniumScraperBase):
+    # TODO: 拡張性に乏しくなるため、このクラスは廃止する
     def __init__(self, base_url, executable_path, visible=False, wait_time=10):
         super().__init__(executable_path, visible, wait_time)
         self.base_url = base_url
