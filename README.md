@@ -6,10 +6,6 @@
 - 競輪([netkeirin](https://keirin.netkeiba.com/))
 - 競艇([boatrace](https://www.boatrace.jp/))
 
-# Features
-
-以下のことができます。
-
 ## 競馬 (netkeiba)
 レースIDに基づいてスクレイピングを行います。
 - レースIDのスクレイピング (地方競馬も対応)
