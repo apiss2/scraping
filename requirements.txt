@@ -3,3 +3,4 @@ pandas
 tqdm
 BeautifulSoup4
 requests
+lxml
