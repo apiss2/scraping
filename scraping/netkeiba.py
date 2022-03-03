@@ -226,7 +226,16 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
     def get_wide_odds_table(self) -> pd.DataFrame:
         # ワイド
         self._click_element(By.ID, "odds_navi_b5")
-        raise NotImplementedError
+        element = self._get_element(By.CLASS_NAME, 'GraphOdds')
+        dfs = pd.read_html(element.get_attribute('outerHTML'))
+        first_list = [int(df.columns.values[0]) for df in dfs]
+        wide_df_list = [df.iloc[:, :2] for df in dfs]
+        for i in range(len(wide_df_list)):
+            wide_df_list[i].columns = ['Second', 'Odds']
+            wide_df_list[i]['First'] = first_list[i]
+            wide_df_list[i] = wide_df_list[i][['First', 'Second', 'Odds']]
+        wide_df = pd.concat(wide_df_list, axis=0)
+        return wide_df
 
     def get_umatan_odds_table(self, sleep_time=0.2) -> pd.DataFrame:
         # 馬単
