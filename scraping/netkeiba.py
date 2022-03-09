@@ -336,11 +336,8 @@ class AutoBuyer(SeleniumScraperBase):
         else:
             self.url = 'https://www.ipat.jra.go.jp/'
 
-    def visit_page(self, inet_id, user_number, password, p_ars, sleep_time=1):
+    def visit_page(self):
         self.driver.get(self.url)
-        time.sleep(sleep_time)
-        self.login(inet_id, user_number, password, p_ars, sleep_time=sleep_time)
-
 
     def login(self, inet_id, user_number, password, p_ars, sleep_time=1):
         # INET-ID
