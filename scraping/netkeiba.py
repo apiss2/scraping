@@ -363,11 +363,15 @@ class AutoBuyer(SeleniumScraperBase):
         selector.select_by_index(self.BAKEN_TYPE.index(baken_type))
 
     def vote_umatan_from_df(self, umatan_df):
+        for col in ['First', 'Second', 'Num']:
+            assert col in umatan_df.columns
         for _, row in umatan_df.iterrows():
             self.vote_umatan(
                 int(row.First), int(row.Second), int(row.Num))
 
     def vote_rentan_from_df(self, rentan_df):
+        for col in ['First', 'Second', 'Third', 'Num']:
+            assert col in rentan_df.columns
         for _, row in rentan_df.iterrows():
             self.vote_rentan(
                 int(row.First), int(row.Second), int(row.Third), int(row.Num))
