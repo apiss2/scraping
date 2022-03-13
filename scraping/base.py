@@ -29,14 +29,16 @@ class SeleniumScraperBase(ABC):
     def visit_page(self):
         pass
 
+    def _visit_page(self, url):
+        self.driver.get(url)
+
     def _get_element(self, by, text):
         return self.wait.until(visibility_of_element_located((by, text)))
 
     def _get_elements(self, by, text):
         return self.wait.until(visibility_of_all_elements_located((by, text)))
 
-    def _click_element(self, by, text):
-        element = self._get_element(by, text)
+    def _click(self, element):
         self.driver.execute_script("arguments[0].scrollIntoView(false);", element)
         element.click()
 

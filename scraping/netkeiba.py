@@ -1,4 +1,5 @@
 import datetime
+import warnings
 import re
 import time
 
@@ -11,16 +12,6 @@ from selenium.webdriver.support.select import Select
 from tqdm import tqdm
 
 from .base import SeleniumScraperBase, SoupScraperBase
-
-
-class NetkeibaSeleniumScraperBase(SeleniumScraperBase):
-    # TODO: 拡張性に乏しくなるため、このクラスは廃止する
-    def __init__(self, base_url, executable_path, visible=False, wait_time=10):
-        super().__init__(executable_path, visible, wait_time)
-        self.base_url = base_url
-
-    def visit_page(self, race_id):
-        self.driver.get(self.base_url.format(race_id))
 
 
 class NetkeibaSoupScraperBase(SoupScraperBase):
@@ -60,14 +51,14 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
             ['td', 'th'])] for row in rows]
         cols = self.MAIN_DF_COLUMNS + self.PLEMIUS_COLUMNS if self.login else self.MAIN_DF_COLUMNS
         main_df = pd.DataFrame(data[1:], columns=data[0])[cols]
+        main_df['horse_id'] = self.get_horse_id_list()
+        main_df['jockey_id'] = self.get_jockey_id_list()
         return main_df
 
     def get_horse_id_list(self) -> list:
-        # TODO: get_main_dfと統合
         return self.__get_id_list('horse')
 
     def get_jockey_id_list(self) -> list:
-        # TODO: get_main_dfと統合
         return self.__get_id_list('horse')
 
     def __get_id_list(self, id_type) -> list:
@@ -78,6 +69,7 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
         return id_list
 
     def get_race_info(self) -> dict:
+        assert self.soup is not None
         # レース情報のスクレイピング
         race_name = self.soup.find(
             "dl", attrs={"class": "racedata fc"}).find('h1').text
@@ -118,6 +110,7 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
         return race_info
 
     def get_pay_df(self) -> pd.DataFrame:
+        assert self.soup is not None
         tables = self.soup.find_all('table', attrs={"class": "pay_table_01"})
         rows = tables[0].find_all('tr') + tables[1].find_all('tr')
         data = [[re.sub(r"\<.+?\>", "", str(col).replace('<br/>', 'br')).replace(
@@ -142,9 +135,13 @@ class RaceidScraper(NetkeibaSoupScraperBase):
     def __init__(self):
         super().__init__(base_url="https://db.netkeiba.com/race/list/{}")
 
-    def get_raceID_list_from_date(self, today: datetime.date) -> list:
-        # TODO: 最新週のデータは存在しないので、判定して弾く機能を追加する
-        date = f'{today.year:04}{today.month:02}{today.day:02}'
+    def get_raceID_list_from_date(self, date: datetime.date) -> list:
+        today = datetime.datetime.today()
+        assert date <= today, '未来の日付が入力されています'
+        oneweekago = today - datetime.timedelta(days=7)
+        if oneweekago < date <= today:
+            warnings.warn('直近のレースは情報が更新されていない場合があります')
+        date = f'{date.year:04}{date.month:02}{date.day:02}'
         self.get_soup(date)
         race_list = self.soup.find('div', attrs={"class": 'race_list fc'})
         if race_list is None:
@@ -173,23 +170,33 @@ class RaceidScraper(NetkeibaSoupScraperBase):
                 year, month=i+1, sleep_time=sleep_time, leave=leave)
         return race_id_list
 
-
-class OddsScraper(NetkeibaSeleniumScraperBase):
+class RealTimeOddsScraper(SeleniumScraperBase):
+    # TODO: つくる
     def __init__(self, executable_path, visible=False, wait_time=10):
-        super().__init__(
-            base_url='https://race.netkeiba.com/odds/index.html?race_id={}&rf=race_submenu',
-            executable_path=executable_path, visible=visible, wait_time=wait_time)
+        super().__init__(executable_path=executable_path, visible=visible, wait_time=wait_time)
+        self.ODDS_URL = 'https://race.netkeiba.com/odds/index.html?race_id={}&rf=race_submenu'
+
+
+class OddsScraper(SeleniumScraperBase):
+    def __init__(self, executable_path, visible=False, wait_time=10):
+        super().__init__(executable_path=executable_path, visible=visible, wait_time=wait_time)
+        self.ODDS_URL = 'https://race.netkeiba.com/odds/index.html?race_id={}&rf=race_submenu'
+
+    def visit_page(self, race_id):
+        self._visit_page(self.ODDS_URL.format(race_id))
 
     def get_tansho_odds_table(self, sleep_time=0.2) -> pd.DataFrame:
         # 単勝/複勝
-        self._click_element(By.ID, "odds_navi_b1")
+        element = self._get_element(By.ID, "odds_navi_b1")
+        self._click(element)
         time.sleep(sleep_time)
         tansho_df = self.__get_tanpuku_odds_table(0)
         return tansho_df
 
     def get_fukusho_odds_table(self, sleep_time=0.2) -> pd.DataFrame:
         # 複勝
-        self._click_element(By.ID, "odds_navi_b1")
+        element = self._get_element(By.ID, "odds_navi_b1")
+        self._click(element)
         time.sleep(sleep_time)
         tansho_df = self.__get_tanpuku_odds_table(1)
         return tansho_df
@@ -205,12 +212,14 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
 
     def get_wakuren_odds_table(self) -> pd.DataFrame:
         # 枠連
-        self._click_element(By.ID, "odds_navi_b3")
+        element = self._get_element(By.ID, "odds_navi_b3")
+        self._click(element)
         raise NotImplementedError
 
     def get_umaren_odds_table(self, sleep_time=0.2) -> pd.DataFrame:
         # 馬連
-        self._click_element(By.ID, "odds_navi_b4")
+        element = self._get_element(By.ID, "odds_navi_b4")
+        self._click(element)
         time.sleep(sleep_time)
         element = self._get_element(By.CLASS_NAME, "GraphOdds")
         dfs = pd.read_html(element.get_attribute('outerHTML'))
@@ -225,7 +234,8 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
 
     def get_wide_odds_table(self) -> pd.DataFrame:
         # ワイド
-        self._click_element(By.ID, "odds_navi_b5")
+        element = self._get_element(By.ID, "odds_navi_b5")
+        self._click(element)
         element = self._get_element(By.CLASS_NAME, 'GraphOdds')
         dfs = pd.read_html(element.get_attribute('outerHTML'))
         first_list = [int(df.columns.values[0]) for df in dfs]
@@ -239,7 +249,8 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
 
     def get_umatan_odds_table(self, sleep_time=0.2) -> pd.DataFrame:
         # 馬単
-        self._click_element(By.ID, "odds_navi_b6")
+        element = self._get_element(By.ID, "odds_navi_b6")
+        self._click(element)
         time.sleep(sleep_time)
         element = self._get_element(By.CLASS_NAME, "GraphOdds")
         dfs = pd.read_html(element.get_attribute('outerHTML'))
@@ -254,7 +265,8 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
 
     def get_3renpuku_odds_table(self, sleep_time=0.2) -> pd.DataFrame:
         # 3連複
-        self._click_element(By.ID, "odds_navi_b7")
+        element = self._get_element(By.ID, "odds_navi_b7")
+        self._click(element)
         dropdown = self._get_element(By.ID, "list_select_horse")
         select = Select(dropdown)
         num = len(select.options)
@@ -293,7 +305,8 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
 
     def get_3rentan_odds_table(self, sleep_time=0.2) -> pd.DataFrame:
         # 3連単
-        self._click_element(By.ID, "odds_navi_b8")
+        element = self._get_element(By.ID, "odds_navi_b8")
+        self._click(element)
         dropdown = self._get_element(By.ID, "list_select_horse")
         select = Select(dropdown)
         num = len(select.options)
@@ -327,6 +340,7 @@ class OddsScraper(NetkeibaSeleniumScraperBase):
 
 
 class AutoBuyer(SeleniumScraperBase):
+    # TODO: 各馬券の自動購入機能を追加
     BAKEN_TYPE = ['単勝', '複勝', '枠連', '馬連', 'ワイド', '馬単', '３連複', '３連単']
 
     def __init__(self, executable_path, demo=True, wait_time=10):
@@ -344,7 +358,8 @@ class AutoBuyer(SeleniumScraperBase):
         element = self._get_element(By.XPATH, '//*[@id="top"]/div[3]/div/table/tbody/tr/td[2]/div/div/form/table[1]/tbody/tr/td[2]/span/input')
         element.send_keys(str(inet_id))
         # クリックしてページ遷移
-        self._click_element(By.XPATH, '//*[@id="top"]/div[3]/div/table/tbody/tr/td[2]/div/div/form/table[1]/tbody/tr/td[3]/p/a')
+        element = self._get_element(By.XPATH, '//*[@id="top"]/div[3]/div/table/tbody/tr/td[2]/div/div/form/table[1]/tbody/tr/td[3]/p/a')
+        self._click(element)
         time.sleep(sleep_time)
         # 加入者番号
         element = self._get_element(By.XPATH, '//*[@id="main_area"]/div/div[1]/table/tbody/tr[1]/td[2]/span/input')
@@ -356,7 +371,8 @@ class AutoBuyer(SeleniumScraperBase):
         element = self._get_element(By.XPATH, '//*[@id="main_area"]/div/div[1]/table/tbody/tr[3]/td[2]/span/input')
         element.send_keys(p_ars)
         # クリックしてログイン
-        self._click_element(By.XPATH, '//*[@id="main_area"]/div/div[1]/table/tbody/tr[1]/td[3]/p/a')
+        element = self._get_element(By.XPATH, '//*[@id="main_area"]/div/div[1]/table/tbody/tr[1]/td[3]/p/a')
+        self._click(element)
 
     def vote_baken_type_select(self, baken_type):
         selector = Select(self._get_element(By.XPATH, '//*[@id="bet-basic-type"]'))
@@ -377,13 +393,16 @@ class AutoBuyer(SeleniumScraperBase):
                 int(row.First), int(row.Second), int(row.Third), int(row.Num))
 
     def vote_umatan(self, first, second, num, sleep_time=0.2):
+        # TODO: XPATHを利用しない
         # 1着入力
-        self._click_element(By.XPATH,
+        element = self._get_element(By.XPATH,
             f'//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/div/div/span/div/span/bet-basic-exacta-basic/table/tbody/tr[{first}]/td[2]/label/span')
+        self._click(element)
         time.sleep(sleep_time)
         # 2着入力
-        self._click_element(By.XPATH,
+        element = self._get_element(By.XPATH,
             f'//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/div/div/span/div/span/bet-basic-exacta-basic/table/tbody/tr[{second}]/td[3]/label/span')
+        self._click(element)
         time.sleep(sleep_time)
         # 購入金額入力
         element = self._get_element(By.XPATH,
@@ -392,19 +411,23 @@ class AutoBuyer(SeleniumScraperBase):
         time.sleep(0.1)
         element.send_keys(f'{num}')
         time.sleep(sleep_time)
-        self._click_element(By.XPATH,
+        element = self._get_element(By.XPATH,
             '//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/select-list/div/div/div[3]/div[4]/button[2]')
+        self._click(element)
         time.sleep(sleep_time)
 
     def vote_rentan(self, first, second, third, num, sleep_time=0.2):
-        self._click_element(
+        element = self._get_element(
             By.XPATH, f'//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/div/div/span/div/span/bet-basic-trifecta-basic/table/tbody/tr[{first}]/td[2]/label/span')
+        self._click(element)
         time.sleep(sleep_time)
-        self._click_element(
+        element = self._get_element(
             By.XPATH, f'//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/div/div/span/div/span/bet-basic-trifecta-basic/table/tbody/tr[{second}]/td[3]/label/span')
+        self._click(element)
         time.sleep(sleep_time)
-        self._click_element(
+        element = self._get_element(
             By.XPATH, f'//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/div/div/span/div/span/bet-basic-trifecta-basic/table/tbody/tr[{third}]/td[4]/label/span')
+        self._click(element)
         time.sleep(sleep_time)
         element = self._get_element(
             By.XPATH, '//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/select-list/div/div/div[3]/div[1]/input')
@@ -413,8 +436,9 @@ class AutoBuyer(SeleniumScraperBase):
         time.sleep(0.1)
         element.send_keys(f'{num}')
         time.sleep(sleep_time)
-        self._click_element(
+        element = self._get_element(
             By.XPATH, '//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/select-list/div/div/div[3]/div[4]/button[2]')
+        self._click(element)
         time.sleep(sleep_time)
 
 
