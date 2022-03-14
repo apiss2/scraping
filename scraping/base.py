@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 
 import requests
 from bs4 import BeautifulSoup
@@ -25,10 +25,6 @@ class SeleniumScraperBase(ABC):
     def __del__(self):
         self.driver.close()
 
-    @abstractmethod
-    def visit_page(self):
-        pass
-
     def _visit_page(self, url):
         self.driver.get(url)
 
@@ -53,10 +49,6 @@ class SoupScraperBase(ABC):
             self.login = True
             self.session = requests.session()
             self.session.post(login_url, data=login_info)
-
-    @abstractmethod
-    def get_soup(self, encoding=None):
-        pass
 
     def _get_soup(self, url, encoding=None):
         if self.login:
