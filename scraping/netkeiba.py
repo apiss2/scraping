@@ -171,11 +171,193 @@ class RaceidScraper(NetkeibaSoupScraperBase):
         return race_id_list
 
 class RealTimeOddsScraper(SeleniumScraperBase):
-    # TODO: つくる
     def __init__(self, executable_path, visible=False, wait_time=10):
         super().__init__(executable_path=executable_path, visible=visible, wait_time=wait_time)
-        self.ODDS_URL = 'https://race.netkeiba.com/odds/index.html?race_id={}&rf=race_submenu'
+        self.URL = 'https://www.jra.go.jp/'
+        self.status = 0
+        ''' status list
+        0: 初期状態。何も表示されている状態
+        1: 今週の競馬が開催されている競馬場一覧が表示されている状態
+        2: ある競馬場のレース(12R)一覧が表示されている状態
+        3: レース個別ページが表示されている状態
+        '''
+        self.get_racecourse_list()
+        print('以下の数字からレースを選択し、select_racecourseメソッドを使用してください')
+        for i, race in enumerate(self.race_list):
+            print(f'{i}, ', race['text'])
 
+    def get_tansho_odds(self):
+        assert self.status == 3
+        self._select_baken_type(0)
+        dfs = self._get_odds_list()
+        d = {'馬番': 'First', '単勝': 'Odds'}
+        df = dfs[0][['馬番', '単勝']].rename(columns=d)
+        return df
+
+    def get_umaren_odds(self):
+        assert self.status == 3
+        self._select_baken_type(2)
+        dfs = self._get_odds_list()
+        l = list()
+        for i, df in enumerate(dfs):
+            df.columns = ['Second', 'Odds']
+            df['First'] = i + 1
+            l.append(df)
+        df = pd.concat(l)[['First', 'Second', 'Odds']]
+        df.reset_index(drop=True, inplace=True)
+        return df
+
+    def get_wide_odds(self):
+        assert self.status == 3
+        self._select_baken_type(3)
+        dfs = self._get_odds_list()
+        l = list()
+        for i, df in enumerate(dfs):
+            df.columns = ['Second', 'Odds']
+            df['First'] = i + 1
+            l.append(df)
+        df = pd.concat(l)[['First', 'Second', 'Odds']]
+        df.reset_index(drop=True, inplace=True)
+        return df
+
+    def get_umatan_odds(self):
+        assert self.status == 3
+        self._select_baken_type(4)
+        dfs = self._get_odds_list()
+        l = list()
+        for i, df in enumerate(dfs):
+            df.columns = ['Second', 'Odds']
+            df['First'] = i + 1
+            l.append(df)
+        df = pd.concat(l)[['First', 'Second', 'Odds']]
+        idx = df.First == df.Second
+        df = df[~idx].reset_index(drop=True)
+        return df
+
+    def get_renpuku_odds(self):
+        assert self.status == 3
+        self._select_baken_type(5)
+        elements = self._get_elements(By.CLASS_NAME, 'fuku3_list')
+        l = list()
+        for content in elements:
+            li_list = content.find_elements(By.TAG_NAME, 'li')
+            for li in li_list:
+                text = li.find_element(By.TAG_NAME, 'caption')
+                umas = text.get_attribute('textContent').split('-')
+                df = pd.read_html(li.get_attribute('outerHTML'))[0]
+                df.columns = ['Third', 'Odds']
+                df['First'] = int(umas[0])
+                df['Second'] = int(umas[1])
+                l.append(df)
+        df = pd.concat(l)[['First', 'Second', 'Third', 'Odds']]
+        df.reset_index(drop=True, inplace=True)
+        return df
+
+    def get_rentan_odds(self):
+        self._select_baken_type(6)
+        element = self._get_element(By.ID, 'odds_list')
+        elements = element.find_elements(By.CLASS_NAME, 'tan3_list')
+        l = list()
+        for content in elements:
+            li_list = content.find_elements(By.TAG_NAME, 'li')
+            for li in li_list:
+                nums = li.find_elements(By.CLASS_NAME, 'num')
+                nums = [num.get_attribute('textContent') for num in nums]
+                df = pd.read_html(li.get_attribute('outerHTML'))[0]
+                df.columns = ['Third', 'Odds']
+                df['First'] = int(nums[0])
+                df['Second'] = int(nums[1])
+                l.append(df)
+        df = pd.concat(l)[['First', 'Second', 'Third', 'Odds']]
+        idx = (df.First == df.Third) | (df.Second == df.Third)
+        df = df[~idx].reset_index(drop=True)
+        return df
+
+    def _get_odds_list(self, third=False):
+        assert self.status == 3
+        element = self._get_element(By.ID, 'odds_list')
+        dfs = pd.read_html(element.get_attribute('outerHTML'))
+        return dfs
+
+    def _select_baken_type(self, idx: int):
+        assert self.status == 3
+        elements = self._get_elements(By.CLASS_NAME, 'nav')
+        baken_type_list = elements[1].find_elements(By.TAG_NAME, 'li')
+        self._click(baken_type_list[idx])
+
+    def get_racecourse_list(self):
+        '''
+        ページにアクセス&遷移し、レース一覧が存在するページを表示する。
+        status any -> 1
+        '''
+        self.visit_race_list_page()
+        self.date_info = self.get_date_info()
+        self.race_list = self.get_race_list()
+
+    def select_race(self, race_num: int):
+        '''
+        レース一覧(12R)が表示されているページから1レースを選択する
+        status 2 -> 3
+        '''
+        assert self.status == 2
+        assert 0 < race_num < 13
+        race_num -= 1
+        element = self._get_element(By.TAG_NAME, 'tbody')
+        race_num_list = element.find_elements(By.CLASS_NAME, 'race_num')
+        self._click(race_num_list[race_num])
+        self.status = 3
+
+    def select_racecourse(self, idx):
+        '''
+        get_racecourse_listメソッド後に利用して、
+        レース場のその日のレース一覧(12R)を表示しているページに遷移。
+        status 1 -> 2
+        '''
+        assert self.status == 1
+        assert self.race_list is not None, 'select_raceを先に実行してください'
+        self._click(self.race_list[idx]['element'])
+        self.race_list = None
+        self.status = 2
+
+    def visit_race_list_page(self):
+        '''
+        JRAの公式にアクセスし、オッズタブを選択し、レース一覧ページを表示する
+        status any -> 1
+        '''
+        self._visit_page(self.URL)
+        element = self._get_element(By.ID, 'quick_menu')
+        element = element.find_elements(By.TAG_NAME, 'li')[2]
+        self._click(element)
+        self.status = 1
+
+    def get_date_info(self) -> list:
+        '''
+        日付と曜日を文字列のリストとして取得する
+        status 1 -> 1
+        '''
+        assert self.status == 1
+        this_week = self._get_element(By.CLASS_NAME, 'thisweek')
+        days = this_week.find_elements(By.CLASS_NAME, 'sub_header')
+        return [day.get_attribute('textContent') for day in days]
+
+    def get_race_list(self) -> list:
+        '''
+        その週に開催されている（されていた）レースの一覧について
+        文字列（レース名など）と、elementを取得する。
+        status 1 -> 1
+        '''
+        assert self.status == 1
+        race_list = list()
+        days_elements = self._get_elements(By.CLASS_NAME, 'link_list')
+        for i, days_element in enumerate(days_elements):
+            elements = days_element.find_elements(By.TAG_NAME, 'div')
+            date_info = self.date_info[i]
+            for element in elements:
+                text = element.get_attribute("textContent")
+                text = text.replace('\n', '').replace(' ', '')
+                text = date_info + text
+                race_list.append({'text': text, 'element': element})
+        return race_list
 
 class OddsScraper(SeleniumScraperBase):
     def __init__(self, executable_path, visible=False, wait_time=10):
