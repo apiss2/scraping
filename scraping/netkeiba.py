@@ -523,7 +523,9 @@ class OddsScraper(SeleniumScraperBase):
 
 class AutoBuyer(SeleniumScraperBase):
     # TODO: 各馬券の自動購入機能を追加
-    BAKEN_TYPE = ['単勝', '複勝', '枠連', '馬連', 'ワイド', '馬単', '３連複', '３連単']
+    BAKEN_TYPE = {
+        'TANSHO': 0, 'UMAREN': 2, 'WIDE': 3,
+        'UMATAN': 4, 'RENPUKU': 5, 'RENTAN': 6}
 
     def __init__(self, executable_path, demo=True, wait_time=10):
         super().__init__(executable_path, visible=True, wait_time=wait_time)
@@ -531,72 +533,102 @@ class AutoBuyer(SeleniumScraperBase):
             self.url = 'https://www.jra.go.jp/IPAT_TAIKEN/s-pat/pw_010_i.html'
         else:
             self.url = 'https://www.ipat.jra.go.jp/'
+        self.visit_page()
 
     def visit_page(self):
         self.driver.get(self.url)
 
+    def login_demo(self):
+        self.login(
+            inet_id='sushieat',
+            user_number='12345678',
+            password='1111',
+            p_ars='1234')
+
     def login(self, inet_id, user_number, password, p_ars, sleep_time=1):
         # INET-ID
-        element = self._get_element(By.XPATH, '//*[@id="top"]/div[3]/div/table/tbody/tr/td[2]/div/div/form/table[1]/tbody/tr/td[2]/span/input')
+        element = self._get_element(By.NAME, 'inetid')
         element.send_keys(str(inet_id))
         # クリックしてページ遷移
-        element = self._get_element(By.XPATH, '//*[@id="top"]/div[3]/div/table/tbody/tr/td[2]/div/div/form/table[1]/tbody/tr/td[3]/p/a')
+        element = self._get_element(By.CLASS_NAME, 'button')
         self._click(element)
         time.sleep(sleep_time)
         # 加入者番号
-        element = self._get_element(By.XPATH, '//*[@id="main_area"]/div/div[1]/table/tbody/tr[1]/td[2]/span/input')
+        element = self._get_element(By.NAME, 'i')
         element.send_keys(str(user_number))
         # 暗証番号
-        element = self._get_element(By.XPATH, '//*[@id="main_area"]/div/div[1]/table/tbody/tr[2]/td[2]/span/input')
+        element = self._get_element(By.NAME, 'p')
         element.send_keys(str(password))
         # P-ARS番号
-        element = self._get_element(By.XPATH, '//*[@id="main_area"]/div/div[1]/table/tbody/tr[3]/td[2]/span/input')
+        element = self._get_element(By.NAME, 'r')
         element.send_keys(p_ars)
         # クリックしてログイン
-        element = self._get_element(By.XPATH, '//*[@id="main_area"]/div/div[1]/table/tbody/tr[1]/td[3]/p/a')
+        element = self._get_element(By.CLASS_NAME, 'buttonModern')
+        self._click(element)
+        time.sleep(sleep_time)
+        element = self._get_element(By.CLASS_NAME, 'btn')
         self._click(element)
 
-    def vote_baken_type_select(self, baken_type):
-        selector = Select(self._get_element(By.XPATH, '//*[@id="bet-basic-type"]'))
-        selector.select_by_index(self.BAKEN_TYPE.index(baken_type))
+    def select_baken_type(self, vote_type: str):
+        element = self._get_element(By.ID, 'bet-odds-type')
+        assert vote_type in self.BAKEN_TYPE, '正しい投票方式を選択してください'
+        idx = self.BAKEN_TYPE[vote_type]
+        self._select(element, idx)
+
+    def select_vote_type(self, third=False):
+        # 今のところながしで固定
+        element = self._get_element(By.ID, 'bet-odds-method')
+        idx = 4 if third else 1
+        self._select(element, idx)
 
     def vote_umatan_from_df(self, umatan_df):
+        # エラーチェック
         for col in ['First', 'Second', 'Num']:
             assert col in umatan_df.columns
+        # 式別選択
+        self.select_baken_type('UMATAN')
+        # 入力
         for _, row in umatan_df.iterrows():
             self.vote_umatan(
                 int(row.First), int(row.Second), int(row.Num))
 
     def vote_rentan_from_df(self, rentan_df):
+        # エラーチェック
         for col in ['First', 'Second', 'Third', 'Num']:
             assert col in rentan_df.columns
+        # 式別選択
+        self.select_baken_type('RENTAN')
+        # 入力
         for _, row in rentan_df.iterrows():
             self.vote_rentan(
                 int(row.First), int(row.Second), int(row.Third), int(row.Num))
 
+    def vote_tansho(self, first: int, num: int, sleep_time=0.2):
+        # 馬選択
+        elements = self._get_element(By.CLASS_NAME, 'odds-win')
+        self._click(elements[first + 1])
+        time.sleep(sleep_time)
+        # 数量記入
+        self.input_num(num)
+        time.sleep(sleep_time)
+        # 登録
+        self.register_vote()
+
     def vote_umatan(self, first, second, num, sleep_time=0.2):
         # TODO: XPATHを利用しない
         # 1着入力
-        element = self._get_element(By.XPATH,
-            f'//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/div/div/span/div/span/bet-basic-exacta-basic/table/tbody/tr[{first}]/td[2]/label/span')
-        self._click(element)
+        elements = self._get_elements(By.CLASS_NAME, 'racer-first')
+        self._click(elements[int(first) - 1])
         time.sleep(sleep_time)
         # 2着入力
-        element = self._get_element(By.XPATH,
-            f'//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/div/div/span/div/span/bet-basic-exacta-basic/table/tbody/tr[{second}]/td[3]/label/span')
-        self._click(element)
+        elements = self._get_elements(By.CLASS_NAME, 'racer-second')
+        self._click(elements[int(second) - 1])
         time.sleep(sleep_time)
         # 購入金額入力
-        element = self._get_element(By.XPATH,
-            '//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/select-list/div/div/div[3]/div[1]/input')
-        element.clear()
-        time.sleep(0.1)
-        element.send_keys(f'{num}')
+        self.input_num(num)
         time.sleep(sleep_time)
-        element = self._get_element(By.XPATH,
-            '//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/select-list/div/div/div[3]/div[4]/button[2]')
-        self._click(element)
-        time.sleep(sleep_time)
+        # 登録
+        self.register_vote()
 
     def vote_rentan(self, first, second, third, num, sleep_time=0.2):
         element = self._get_element(
@@ -622,6 +654,19 @@ class AutoBuyer(SeleniumScraperBase):
             By.XPATH, '//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/select-list/div/div/div[3]/div[4]/button[2]')
         self._click(element)
         time.sleep(sleep_time)
+
+    def input_num(self, num):
+        # 数量記入
+        element = self._get_element(By.CLASS_NAME, 'selection-amount')
+        element = element.find_element(By.CLASS_NAME, 'form-control')
+        element.send_keys(str(num))
+
+    def register_vote(self):
+        # 登録
+        element = self._get_element(By.CLASS_NAME, 'pull-sm-right')
+        element = element.find_elements(By.CLASS_NAME, 'selection-buttons')[0]
+        btn = element.find_elements(By.CLASS_NAME, 'btn')[0]
+        self._click(btn)
 
 
 class LocalRaceidScraper(SeleniumScraperBase):
