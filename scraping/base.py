@@ -6,6 +6,7 @@ from selenium.webdriver import Chrome, ChromeOptions
 from selenium.webdriver.support.expected_conditions import (
     visibility_of_all_elements_located, visibility_of_element_located)
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.select import Select
 
 
 class SeleniumScraperBase(ABC):
@@ -37,6 +38,10 @@ class SeleniumScraperBase(ABC):
     def _click(self, element):
         self.driver.execute_script("arguments[0].scrollIntoView(false);", element)
         element.click()
+
+    def _select(self, element, idx):
+        select = Select(element)
+        select.select_by_index(idx)
 
 
 class SoupScraperBase(ABC):
