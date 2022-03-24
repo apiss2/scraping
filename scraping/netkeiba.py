@@ -2,6 +2,7 @@ import datetime
 import warnings
 import re
 import time
+from typing import Union, List
 
 import pandas as pd
 import requests
@@ -15,7 +16,18 @@ from .base import SeleniumScraperBase, SoupScraperBase
 
 
 class NetkeibaSoupScraperBase(SoupScraperBase):
-    def __init__(self, base_url, user_id=None, password=None):
+    '''Netkeibaの静的サイトのスクレイピングに使うベースクラス'''
+    def __init__(self, base_url: str, user_id: str = None, password: str = None):
+        """
+        Parameters
+        ----------
+        base_url : str
+            対象ページのURL。レースIDによって制御できる形式にする。
+        user_id : str, default None
+            ログインする場合に指定するユーザID
+        password : str, default None
+            ログインする場合に指定するパスワード
+        """
         url, info = None, None
         if (user_id is not None) and (password is not None):
             url = "https://regist.netkeiba.com/account/?pid=login&action=auth"
@@ -24,11 +36,19 @@ class NetkeibaSoupScraperBase(SoupScraperBase):
         self.base_url = base_url
         self.soup = None
 
-    def get_soup(self, race_id):
+    def get_soup(self, race_id: Union[str, int]):
+        """ページの情報をBeautifulSoup形式で保持する。
+
+        Parameters
+        ----------
+        race_id : str or int
+            8桁のレースID
+        """
         self.soup = self._get_soup(self.base_url.format(race_id), encoding='EUC-JP')
 
 
 class DatabaseScraper(NetkeibaSoupScraperBase):
+    '''入力されたレースIDに従ってNetkeibaのDatabaseページから情報を取得するクラス'''
     HANDICAP_LIST = ['ハンデ', '馬齢', '別定', '定量']
     LOCALHORSE_LIST = ['指', '特指']
     FOREIGNHORSE_LIST = ['国際', '混']
@@ -44,6 +64,7 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
             user_id=user_id, password=password)
 
     def get_main_df(self) -> pd.DataFrame:
+        """馬ごとの情報をスクレイピングする"""
         assert self.soup is not None
         rows = self.soup.find(
             'table', attrs={"class": "race_table_01"}).find_all('tr')
@@ -55,13 +76,15 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
         main_df['jockey_id'] = self.get_jockey_id_list()
         return main_df
 
-    def get_horse_id_list(self) -> list:
+    def get_horse_id_list(self) -> List[int]:
+        """DataBaseページに掲載されている馬のIDリストを取得する"""
         return self.__get_id_list('horse')
 
-    def get_jockey_id_list(self) -> list:
-        return self.__get_id_list('horse')
+    def get_jockey_id_list(self) -> List[int]:
+        """DataBaseページに掲載されている騎手のIDリストを取得する"""
+        return self.__get_id_list('jockey')
 
-    def __get_id_list(self, id_type) -> list:
+    def __get_id_list(self, id_type: str) -> List[str]:
         assert id_type == 'horse' or id_type == 'jockey'
         atag_list = self.soup.find("table", attrs={"summary": "レース結果"}).find_all(
             "a", attrs={"href": re.compile(f"^/{id_type}")})
@@ -69,6 +92,7 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
         return id_list
 
     def get_race_info(self) -> dict:
+        """レースの基本情報を取得する"""
         assert self.soup is not None
         # レース情報のスクレイピング
         race_name = self.soup.find(
@@ -110,6 +134,7 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
         return race_info
 
     def get_pay_df(self) -> pd.DataFrame:
+        """レースの払い戻し情報を取得する"""
         assert self.soup is not None
         tables = self.soup.find_all('table', attrs={"class": "pay_table_01"})
         rows = tables[0].find_all('tr') + tables[1].find_all('tr')
@@ -119,10 +144,18 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
 
 
 class UmabashiraScraper(object):
+    '''入力されたレースIDに従って馬柱を取得するクラス'''
     def __init__(self):
         self.base_url = 'http://jiro8.sakura.ne.jp/index.php?code={}'
 
-    def get_umabashira(self, race_id):
+    def get_umabashira(self, race_id: Union[str, int]) -> pd.DataFrame:
+        """馬柱情報をDataFrame形式で取得する。
+
+        Parameters
+        ----------
+        race_id : str or int
+            8桁のレースID
+        """
         code = str(race_id)[2:]
         html = requests.get(self.base_url.format(code))
         html.encoding = 'cp932'
@@ -135,7 +168,20 @@ class RaceidScraper(NetkeibaSoupScraperBase):
     def __init__(self):
         super().__init__(base_url="https://db.netkeiba.com/race/list/{}")
 
-    def get_raceID_list_from_date(self, date: datetime.date) -> list:
+    def get_raceID_list_from_date(self, date: datetime.date) -> List[str]:
+        """指定した日付に開催されたレースのレースID
+
+        Parameters
+        ----------
+        date : datetime.date
+            レースIDを取得する日付。
+            直近1週間だとレース情報が存在しない可能性があるため警告が表示される。
+
+        Returns
+        -------
+        List[str]
+            レースIDのリスト
+        """
         today = datetime.datetime.today()
         assert date <= today, '未来の日付が入力されています'
         oneweekago = today - datetime.timedelta(days=7)
@@ -154,7 +200,23 @@ class RaceidScraper(NetkeibaSoupScraperBase):
                 race_id_list.append(s)
         return list(set(race_id_list))
 
-    def get_monthly_raceID_list(self, year, month, sleep_time, leave=True) -> list:
+    def get_monthly_raceID_list(self, year: int, month: int, sleep_time: float = 1, leave: bool = True) -> List[str]:
+        """指定した年月、1ヶ月の間に開催された全レースのレースIDを取得する
+
+        Parameters
+        ----------
+        year : int
+        month : int
+        sleep_time : float, default True
+            スクレイピングの際1回ごとに発生する待機時間
+        leave : bool, default True
+            Falseを指定すると、終了したら進捗バーを消すようにできる
+
+        Returns
+        -------
+        List[str]
+            レースIDのリスト
+        """
         today = datetime.date(year, month, 1)
         race_id_list = list()
         for _ in tqdm(range(31), leave=leave):
@@ -171,6 +233,8 @@ class RaceidScraper(NetkeibaSoupScraperBase):
         return race_id_list
 
 class RealTimeOddsScraper(SeleniumScraperBase):
+    """_summary_
+    """
     def __init__(self, executable_path, visible=False, wait_time=10):
         super().__init__(executable_path=executable_path, visible=visible, wait_time=wait_time)
         self.URL = 'https://www.jra.go.jp/'
