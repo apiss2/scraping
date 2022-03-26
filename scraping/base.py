@@ -1,4 +1,5 @@
 from abc import ABC
+from typing import List
 
 import requests
 from bs4 import BeautifulSoup
@@ -14,7 +15,18 @@ class SeleniumScraperBase(ABC):
     動的なサイトをスクレイピングする場合は、このクラスを継承。
     '''
 
-    def __init__(self, executable_path, visible=False, wait_time=10):
+    def __init__(self, executable_path: str, visible : bool = False, wait_time: float = 10):
+        """_summary_
+
+        Parameters
+        ----------
+        executable_path : str
+            chrome driverまでのパス
+        visible : bool, default False
+            ブラウザを起動して動作させるかのフラグ
+        wait_time : float, default 10
+            タイムアウトまでの時間
+        """
         self.option = ChromeOptions()
         if not visible:
             self.option.add_argument('--headless')
@@ -49,13 +61,21 @@ class SoupScraperBase(ABC):
     静的なサイトをスクレイピングする場合は、このクラスを継承。
     '''
     def __init__(self, login_url: str = None, login_info: dict = None):
+        """
+        Parameters
+        ----------
+        login_url : str, optional
+            _description_, by default None
+        login_info : dict, optional
+            _description_, by default None
+        """
         self.login = False
         if (login_info is not None) and (login_url is not None):
             self.login = True
             self.session = requests.session()
             self.session.post(login_url, data=login_info)
 
-    def _get_soup(self, url, encoding=None):
+    def _get_soup(self, url: str, encoding: str = None):
         if self.login:
             html = self.session.get(url)
         else:
@@ -66,10 +86,10 @@ class SoupScraperBase(ABC):
         soup = BeautifulSoup(content, "html.parser")
         return soup
 
-    def _get_element(self, soup, tag, by, text):
+    def _get_element(self, soup: BeautifulSoup, tag: str, by: str = None, text: str = None) -> BeautifulSoup:
         attrs = {by: text} if by is not None else {}
         return soup.find(tag, attrs=attrs)
 
-    def _get_elements(self, soup, tag, by=None, text=None):
+    def _get_elements(self, soup: BeautifulSoup, tag: str, by: str = None, text: str = None) -> List[BeautifulSoup]:
         attrs = {by: text} if by is not None else {}
         return soup.find_all(tag, attrs=attrs)
