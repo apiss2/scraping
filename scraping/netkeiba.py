@@ -337,7 +337,7 @@ class RealTimeOddsScraper(SeleniumScraperBase):
         df = df[~idx].reset_index(drop=True)
         return df
 
-    def _get_odds_list(self, third=False):
+    def _get_odds_list(self):
         assert self.status == 3
         element = self._get_element(By.ID, 'odds_list')
         dfs = pd.read_html(element.get_attribute('outerHTML'))
@@ -378,8 +378,9 @@ class RealTimeOddsScraper(SeleniumScraperBase):
         status 1 -> 2
         '''
         assert self.status == 1
-        assert self.race_list is not None, 'select_raceを先に実行してください'
+        assert self.race_list is not None, 'get_racecourse_listを先に実行してください'
         self._click(self.race_list[idx]['element'])
+        print('select_raceメソッドでレースを選択してください')
         self.race_list = None
         self.status = 2
 
@@ -478,10 +479,11 @@ class OddsScraper(SeleniumScraperBase):
         umaren_df = pd.concat(umaren_df_list, axis=0)
         return umaren_df
 
-    def get_wide_odds_table(self) -> pd.DataFrame:
+    def get_wide_odds_table(self, sleep_time=0.2) -> pd.DataFrame:
         # ワイド
         element = self._get_element(By.ID, "odds_navi_b5")
         self._click(element)
+        time.sleep(sleep_time)
         element = self._get_element(By.CLASS_NAME, 'GraphOdds')
         dfs = pd.read_html(element.get_attribute('outerHTML'))
         first_list = [int(df.columns.values[0]) for df in dfs]
@@ -586,10 +588,9 @@ class OddsScraper(SeleniumScraperBase):
 
 
 class AutoBuyer(SeleniumScraperBase):
-    # TODO: 各馬券の自動購入機能を追加
     BAKEN_TYPE = {
-        'TANSHO': 0, 'UMAREN': 2, 'WIDE': 3,
-        'UMATAN': 4, 'RENPUKU': 5, 'RENTAN': 6}
+        'TANSHO': 0, 'UMAREN': 3, 'WIDE': 4,
+        'UMATAN': 5, 'RENPUKU': 6, 'RENTAN': 7}
 
     def __init__(self, executable_path, demo=True, wait_time=10):
         super().__init__(executable_path, visible=True, wait_time=wait_time)
@@ -634,16 +635,61 @@ class AutoBuyer(SeleniumScraperBase):
         self._click(element)
 
     def select_baken_type(self, vote_type: str):
-        element = self._get_element(By.ID, 'bet-odds-type')
-        assert vote_type in self.BAKEN_TYPE, '正しい投票方式を選択してください'
+        element = self._get_element(By.ID, 'bet-basic-type')
+        assert vote_type in self.BAKEN_TYPE.keys(), '正しい投票方式を選択してください'
         idx = self.BAKEN_TYPE[vote_type]
         self._select(element, idx)
 
-    def select_vote_type(self, third=False):
-        # 今のところながしで固定
-        element = self._get_element(By.ID, 'bet-odds-method')
-        idx = 4 if third else 1
+    def select_vote_type(self, vote_type: str):
+        if vote_type in ['TANSHO', 'UMATAN', 'RENTAN']:
+            idx = 0
+        elif vote_type in ['UMAREN', 'WIDE']:
+            idx = 1
+        elif vote_type in ['RENPUKU']:
+            idx = 4
+        else:
+            raise ValueError(f'{self.BAKEN_TYPE}から選択してください')
+        element = self._get_element(By.ID, 'bet-basic-method')
         self._select(element, idx)
+
+    def vote_from_solver_df(self, solver_df):
+        for col in ['First', 'Second', 'Third', 'Num', 'Odds', 'Type']:
+            assert col in solver_df.columns
+        # 単勝
+        tansho_df = solver_df.query('"Type"=="TANSHO"')
+        if len(tansho_df) > 0:
+            self.vote_tansho_from_df(tansho_df)
+        # 馬単
+        umatan_df = solver_df.query('"Type"=="UMATAN"')
+        if len(umatan_df) > 0:
+            self.vote_umatan_from_df(umatan_df)
+        # 馬連
+        umaren_df = solver_df.query('"Type"=="UMAREN"')
+        if len(umaren_df) > 0:
+            self.vote_umaren_from_df(umaren_df)
+        # ワイド
+        wide_df = solver_df.query('"Type"=="WIDE"')
+        if len(wide_df) > 0:
+            self.vote_umatan_from_df(wide_df)
+        # 3連複
+        renpuku_df = solver_df.query('"Type"=="RENPUKU"')
+        if len(renpuku_df) > 0:
+            self.vote_renpuku_from_df(renpuku_df)
+        # 3連単
+        rentan_df = solver_df.query('"Type"=="RENTAN"')
+        if len(rentan_df) > 0:
+            self.vote_rentan_from_df(rentan_df)
+
+    def vote_tansho_from_df(self, tansho_df):
+        # エラーチェック
+        for col in ['First', 'Num']:
+            assert col in tansho_df.columns
+        # 式別選択
+        self.select_baken_type('TANSHO')
+        self.select_vote_type('TANSHO')
+        # 入力
+        for _, row in tansho_df.iterrows():
+            self.vote_tansho(int(row.First), int(row.Num))
 
     def vote_umatan_from_df(self, umatan_df):
         # エラーチェック
@@ -651,9 +697,22 @@ class AutoBuyer(SeleniumScraperBase):
             assert col in umatan_df.columns
         # 式別選択
         self.select_baken_type('UMATAN')
+        self.select_vote_type('UMATAN')
         # 入力
         for _, row in umatan_df.iterrows():
             self.vote_umatan(
+                int(row.First), int(row.Second), int(row.Num))
+
+    def vote_umaren_from_df(self, umaren_df):
+        # エラーチェック
+        for col in ['First', 'Second', 'Num']:
+            assert col in umaren_df.columns
+        # 式別選択
+        self.select_baken_type('UMAREN')
+        self.select_vote_type('UMAREN')
+        # 入力
+        for _, row in umaren_df.iterrows():
+            self.vote_umaren(
                 int(row.First), int(row.Second), int(row.Num))
 
     def vote_rentan_from_df(self, rentan_df):
@@ -662,15 +721,40 @@ class AutoBuyer(SeleniumScraperBase):
             assert col in rentan_df.columns
         # 式別選択
         self.select_baken_type('RENTAN')
+        self.select_vote_type('RENTAN')
         # 入力
         for _, row in rentan_df.iterrows():
             self.vote_rentan(
                 int(row.First), int(row.Second), int(row.Third), int(row.Num))
 
+    def vote_renpuku_from_df(self, renpuku_df):
+        # エラーチェック
+        for col in ['First', 'Second', 'Third', 'Num']:
+            assert col in renpuku_df.columns
+        # 式別選択
+        self.select_baken_type('RENPUKU')
+        self.select_vote_type('RENPUKU')
+        # 入力
+        for _, row in renpuku_df.iterrows():
+            self.vote_renpuku(
+                int(row.First), int(row.Second), int(row.Third), int(row.Num))
+
+    def vote_wide_from_df(self, wide_df):
+        # エラーチェック
+        for col in ['First', 'Second', 'Num']:
+            assert col in wide_df.columns
+        # 式別選択
+        self.select_baken_type('WIDE')
+        self.select_vote_type('WIDE')
+        # 入力
+        for _, row in wide_df.iterrows():
+            self.vote_wide(
+                int(row.First), int(row.Second), int(row.Num))
+
     def vote_tansho(self, first: int, num: int, sleep_time=0.2):
         # 馬選択
-        elements = self._get_element(By.CLASS_NAME, 'odds-win')
-        self._click(elements[first + 1])
+        elements = self._get_elements(By.CLASS_NAME, 'racer-first')
+        self._click(elements[first - 1])
         time.sleep(sleep_time)
         # 数量記入
         self.input_num(num)
@@ -679,7 +763,6 @@ class AutoBuyer(SeleniumScraperBase):
         self.register_vote()
 
     def vote_umatan(self, first, second, num, sleep_time=0.2):
-        # TODO: XPATHを利用しない
         # 1着入力
         elements = self._get_elements(By.CLASS_NAME, 'racer-first')
         self._click(elements[int(first) - 1])
@@ -694,30 +777,45 @@ class AutoBuyer(SeleniumScraperBase):
         # 登録
         self.register_vote()
 
+    def vote_umaren(self, first, second, num, sleep_time=0.2):
+        # 1着入力
+        elements = self._get_elements(By.CLASS_NAME, 'racer-first')
+        self._click(elements[int(first) - 1])
+        time.sleep(sleep_time)
+        # 2着入力
+        elements = self._get_elements(By.CLASS_NAME, 'racer-third')
+        self._click(elements[int(second) - 1])
+        time.sleep(sleep_time)
+        # 購入金額入力
+        self.input_num(num)
+        time.sleep(sleep_time)
+        # 登録
+        self.register_vote()
+
     def vote_rentan(self, first, second, third, num, sleep_time=0.2):
-        element = self._get_element(
-            By.XPATH, f'//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/div/div/span/div/span/bet-basic-trifecta-basic/table/tbody/tr[{first}]/td[2]/label/span')
-        self._click(element)
+        # 1着入力
+        elements = self._get_elements(By.CLASS_NAME, 'racer-first')
+        self._click(elements[int(first) - 1])
         time.sleep(sleep_time)
-        element = self._get_element(
-            By.XPATH, f'//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/div/div/span/div/span/bet-basic-trifecta-basic/table/tbody/tr[{second}]/td[3]/label/span')
-        self._click(element)
+        # 2着入力
+        elements = self._get_elements(By.CLASS_NAME, 'racer-second')
+        self._click(elements[int(second) - 1])
         time.sleep(sleep_time)
-        element = self._get_element(
-            By.XPATH, f'//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/div/div/span/div/span/bet-basic-trifecta-basic/table/tbody/tr[{third}]/td[4]/label/span')
-        self._click(element)
+        # 3着入力
+        elements = self._get_elements(By.CLASS_NAME, 'racer-third')
+        self._click(elements[int(third) - 1])
         time.sleep(sleep_time)
-        element = self._get_element(
-            By.XPATH, '//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/select-list/div/div/div[3]/div[1]/input')
-        time.sleep(0.1)
-        element.clear()
-        time.sleep(0.1)
-        element.send_keys(f'{num}')
+        # 購入金額入力
+        self.input_num(num)
         time.sleep(sleep_time)
-        element = self._get_element(
-            By.XPATH, '//*[@id="main"]/ui-view/div[2]/ui-view/main/div/div[3]/select-list/div/div/div[3]/div[4]/button[2]')
-        self._click(element)
-        time.sleep(sleep_time)
+        # 登録
+        self.register_vote()
+
+    def vote_renpuku(self, first, second, third, num, sleep_time=0.2):
+        self.vote_rentan(first, second, third, num, sleep_time=sleep_time)
+
+    def vote_wide(self, first, second, num, sleep_time=0.2):
+        self.vote_umaren(first, second, num, sleep_time=sleep_time)
 
     def input_num(self, num):
         # 数量記入
@@ -725,12 +823,18 @@ class AutoBuyer(SeleniumScraperBase):
         element = element.find_element(By.CLASS_NAME, 'form-control')
         element.send_keys(str(num))
 
+    def clear_num(self):
+        # 数量削除
+        element = self._get_element(By.CLASS_NAME, 'selection-amount')
+        element = element.find_element(By.CLASS_NAME, 'form-control')
+        element.clear()
+
     def register_vote(self):
         # 登録
-        element = self._get_element(By.CLASS_NAME, 'pull-sm-right')
-        element = element.find_elements(By.CLASS_NAME, 'selection-buttons')[0]
-        btn = element.find_elements(By.CLASS_NAME, 'btn')[0]
+        element = self._get_element(By.CLASS_NAME, 'selection-buttons')
+        btn = element.find_elements(By.TAG_NAME, 'button')[1]
         self._click(btn)
+        self.clear_num()
 
 
 class LocalRaceidScraper(SeleniumScraperBase):
