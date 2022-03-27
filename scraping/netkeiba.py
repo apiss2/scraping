@@ -342,7 +342,7 @@ class RealTimeOddsScraper(SeleniumScraperBase):
 
     def get_umaren_odds(self):
         assert self.status == 3
-        self._select_baken_type(2)
+        self._select_baken_type(1)
         dfs = self._get_odds_list()
         l = list()
         for i, df in enumerate(dfs):
@@ -355,7 +355,7 @@ class RealTimeOddsScraper(SeleniumScraperBase):
 
     def get_wide_odds(self):
         assert self.status == 3
-        self._select_baken_type(3)
+        self._select_baken_type(2)
         dfs = self._get_odds_list()
         l = list()
         for i, df in enumerate(dfs):
@@ -368,7 +368,7 @@ class RealTimeOddsScraper(SeleniumScraperBase):
 
     def get_umatan_odds(self):
         assert self.status == 3
-        self._select_baken_type(4)
+        self._select_baken_type(3)
         dfs = self._get_odds_list()
         l = list()
         for i, df in enumerate(dfs):
@@ -382,7 +382,7 @@ class RealTimeOddsScraper(SeleniumScraperBase):
 
     def get_renpuku_odds(self):
         assert self.status == 3
-        self._select_baken_type(5)
+        self._select_baken_type(4)
         elements = self._get_elements(By.CLASS_NAME, 'fuku3_list')
         l = list()
         for content in elements:
@@ -400,7 +400,7 @@ class RealTimeOddsScraper(SeleniumScraperBase):
         return df
 
     def get_rentan_odds(self):
-        self._select_baken_type(6)
+        self._select_baken_type(5)
         element = self._get_element(By.ID, 'odds_list')
         elements = element.find_elements(By.CLASS_NAME, 'tan3_list')
         l = list()
