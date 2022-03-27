@@ -45,6 +45,7 @@ class NetkeibaSoupScraperBase(SoupScraperBase):
             8桁のレースID
         """
         self.soup = self._get_soup(self.base_url.format(race_id), encoding='EUC-JP')
+        return self.soup
 
 
 class DatabaseScraper(NetkeibaSoupScraperBase):
@@ -231,6 +232,73 @@ class RaceidScraper(NetkeibaSoupScraperBase):
             race_id_list += self.get_monthly_raceID_list(
                 year, month=i+1, sleep_time=sleep_time, leave=leave)
         return race_id_list
+
+
+#馬の過去成績データを処理するクラス
+class HorseResultsScraper(NetkeibaSoupScraperBase):
+    '''馬の過去成績データをスクレイピングするクラス'''
+    def __init__(self, user_id=None, password=None):
+        super().__init__(
+            base_url='https://db.netkeiba.com/horse/{}',
+            user_id=user_id, password=password)
+
+    def get_horseresults(self, horse_id):
+        """
+        Parameters:
+        ----------
+        horse_id : Union[str, int]
+
+        Returns:
+        ----------
+        pandas.DataFrame
+            馬の過去成績データのDataFrame
+        """
+
+        soup = self.get_soup(horse_id)
+        table = soup.find('table', attrs={"class": "db_h_race_results"})
+        df = pd.read_html(str(table), flavor="bs4")[0]
+        columns = df.columns.values.tolist()
+        new_columns = ['horse_id'] + columns
+        df['horse_id'] = horse_id
+        return df[new_columns]
+
+
+#血統データを処理するクラス
+class PedsScraper(NetkeibaSoupScraperBase):
+    '''血統データをスクレイピングするクラス'''
+    def __init__(self, user_id=None, password=None):
+        super().__init__(
+            base_url='https://db.netkeiba.com/horse/ped/{}',
+            user_id=user_id, password=password)
+
+    def get_peds(self, horse_id: Union[int, str]):
+        """
+        Parameters:
+        ----------
+        horse_id : Union[int, str]
+            馬ID
+
+        Returns:
+        ----------
+        peds_df : pandas.DataFrame
+            全血統データをまとめてDataFrame型にしたもの
+        """
+
+        id_list = list()
+        soup = self.get_soup(horse_id)
+        table = soup.find('table', attrs={"class": "blood_table"})
+        for idx, span in enumerate(['16', '8', '4', '2', '']):
+            for row in table.find_all("td", attrs={"rowspan": span}):
+                for atag in row.find_all("a"):
+                    ret = re.findall(r"/horse/[0-9a-zA-Z]{10}", atag["href"])
+                    if len(ret) != 0:
+                        d = {
+                            'name': atag.text.split('\n')[0],
+                            'horse_id':ret[0].split('/')[-1],
+                            'gen': idx + 1}
+                        id_list.append(d)
+        return pd.DataFrame(id_list)
+
 
 class RealTimeOddsScraper(SeleniumScraperBase):
     """_summary_
@@ -423,6 +491,7 @@ class RealTimeOddsScraper(SeleniumScraperBase):
                 text = date_info + text
                 race_list.append({'text': text, 'element': element})
         return race_list
+
 
 class OddsScraper(SeleniumScraperBase):
     def __init__(self, executable_path, visible=False, wait_time=10):
