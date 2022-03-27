@@ -506,6 +506,22 @@ class RealTimeOddsScraper(SeleniumScraperBase):
                 race_list.append({'text': text, 'element': element})
         return race_list
 
+    def get_odds_df_dict(self, sleep_time: float = 0.2) -> Dict[str, pd.DataFrame]:
+        df_dict = dict()
+        # 単勝
+        df_dict['TANSHO'] = self.get_tansho_odds(sleep_time)
+        # 馬単
+        df_dict['UMATAN'] = self.get_umatan_odds(sleep_time)
+        # 3連単
+        df_dict['RENTAN'] = self.get_rentan_odds(sleep_time)
+        # 馬連
+        df_dict['UMAREN'] = self.get_umaren_odds(sleep_time)
+        # 3連複
+        df_dict['RENPUKU'] = self.get_renpuku_odds(sleep_time)
+        # ワイド
+        df_dict['WIDE'] = self.get_wide_odds(sleep_time)
+        return df_dict
+
 
 class OddsScraper(SeleniumScraperBase):
     def __init__(self, executable_path, visible=False, wait_time=10):
@@ -672,17 +688,17 @@ class OddsScraper(SeleniumScraperBase):
     def get_odds_df_dict(self, sleep_time: float = 0.2) -> Dict[str, pd.DataFrame]:
         df_dict = dict()
         # 単勝
-        df_dict['TANSHO'] = self.get_tansho_odds_table(sleep_time)
+        df_dict['TANSHO'] = self.get_tansho_odds(sleep_time)
         # 馬単
-        df_dict['UMATAN'] = self.get_umatan_odds_table(sleep_time)
+        df_dict['UMATAN'] = self.get_umatan_odds(sleep_time)
         # 3連単
-        df_dict['RENTAN'] = self.get_3rentan_odds_table(sleep_time)
+        df_dict['RENTAN'] = self.get_rentan_odds(sleep_time)
         # 馬連
-        df_dict['UMAREN'] = self.get_umaren_odds_table(sleep_time)
+        df_dict['UMAREN'] = self.get_umaren_odds(sleep_time)
         # 3連複
-        df_dict['RENPUKU'] = self.get_3renpuku_odds_table(sleep_time)
+        df_dict['RENPUKU'] = self.get_renpuku_odds(sleep_time)
         # ワイド
-        df_dict['WIDE'] = self.get_wide_odds_table(sleep_time)
+        df_dict['WIDE'] = self.get_wide_odds(sleep_time)
         return df_dict
 
 
