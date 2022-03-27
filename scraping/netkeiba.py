@@ -506,20 +506,20 @@ class RealTimeOddsScraper(SeleniumScraperBase):
                 race_list.append({'text': text, 'element': element})
         return race_list
 
-    def get_odds_df_dict(self, sleep_time: float = 0.2) -> Dict[str, pd.DataFrame]:
+    def get_odds_df_dict(self) -> Dict[str, pd.DataFrame]:
         df_dict = dict()
         # 単勝
-        df_dict['TANSHO'] = self.get_tansho_odds(sleep_time)
+        df_dict['TANSHO'] = self.get_tansho_odds()
         # 馬単
-        df_dict['UMATAN'] = self.get_umatan_odds(sleep_time)
+        df_dict['UMATAN'] = self.get_umatan_odds()
         # 3連単
-        df_dict['RENTAN'] = self.get_rentan_odds(sleep_time)
+        df_dict['RENTAN'] = self.get_rentan_odds()
         # 馬連
-        df_dict['UMAREN'] = self.get_umaren_odds(sleep_time)
+        df_dict['UMAREN'] = self.get_umaren_odds()
         # 3連複
-        df_dict['RENPUKU'] = self.get_renpuku_odds(sleep_time)
+        df_dict['RENPUKU'] = self.get_renpuku_odds()
         # ワイド
-        df_dict['WIDE'] = self.get_wide_odds(sleep_time)
+        df_dict['WIDE'] = self.get_wide_odds()
         return df_dict
 
 
