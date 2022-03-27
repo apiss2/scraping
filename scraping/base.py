@@ -16,8 +16,7 @@ class SeleniumScraperBase(ABC):
     '''
 
     def __init__(self, executable_path: str, visible : bool = False, wait_time: float = 10):
-        """_summary_
-
+        """
         Parameters
         ----------
         executable_path : str

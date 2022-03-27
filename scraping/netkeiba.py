@@ -2,7 +2,7 @@ import datetime
 import warnings
 import re
 import time
-from typing import Union, List
+from typing import Union, List, Dict
 
 import pandas as pd
 import requests
@@ -247,6 +247,7 @@ class HorseResultsScraper(NetkeibaSoupScraperBase):
         Parameters:
         ----------
         horse_id : Union[str, int]
+            馬ID
 
         Returns:
         ----------
@@ -301,24 +302,37 @@ class PedsScraper(NetkeibaSoupScraperBase):
 
 
 class RealTimeOddsScraper(SeleniumScraperBase):
-    """_summary_
     """
-    def __init__(self, executable_path, visible=False, wait_time=10):
+    JRA公式サイトからほぼリアルタイムのオッズ情報をスクレイピングするクラス。
+    """
+    def __init__(self, executable_path: str, visible: bool = False, wait_time: int = 10):
+        """
+        Parameters
+        ----------
+        executable_path : str
+            chrome driverまでのパス
+        visible : bool, default False
+            ブラウザを起動して動作させるかのフラグ
+        wait_time : float, default 10
+            タイムアウトまでの時間
+
+        Notes
+        -----
+        このクラスは`self.status`で現在のブラウザの状態を定義している。
+        * 0: 初期状態。何も表示されている状態
+        * 1: 今週の競馬が開催されている競馬場一覧が表示されている状態
+        * 2: ある競馬場のレース(12R)一覧が表示されている状態
+        * 3: レース個別ページが表示されている状態
+        """
         super().__init__(executable_path=executable_path, visible=visible, wait_time=wait_time)
         self.URL = 'https://www.jra.go.jp/'
         self.status = 0
-        ''' status list
-        0: 初期状態。何も表示されている状態
-        1: 今週の競馬が開催されている競馬場一覧が表示されている状態
-        2: ある競馬場のレース(12R)一覧が表示されている状態
-        3: レース個別ページが表示されている状態
-        '''
         self.get_racecourse_list()
         print('以下の数字からレースを選択し、select_racecourseメソッドを使用してください')
         for i, race in enumerate(self.race_list):
             print(f'{i}, ', race['text'])
 
-    def get_tansho_odds(self):
+    def get_tansho_odds(self) -> pd.DataFrame:
         assert self.status == 3
         self._select_baken_type(0)
         dfs = self._get_odds_list()
@@ -498,26 +512,26 @@ class OddsScraper(SeleniumScraperBase):
         super().__init__(executable_path=executable_path, visible=visible, wait_time=wait_time)
         self.ODDS_URL = 'https://race.netkeiba.com/odds/index.html?race_id={}&rf=race_submenu'
 
-    def visit_page(self, race_id):
+    def visit_page(self, race_id: Union[str, int]):
         self._visit_page(self.ODDS_URL.format(race_id))
 
-    def get_tansho_odds_table(self, sleep_time=0.2) -> pd.DataFrame:
+    def get_tansho_odds(self, sleep_time=0.2) -> pd.DataFrame:
         # 単勝/複勝
         element = self._get_element(By.ID, "odds_navi_b1")
         self._click(element)
         time.sleep(sleep_time)
-        tansho_df = self.__get_tanpuku_odds_table(0)
+        tansho_df = self.__get_tanpuku_odds(0)
         return tansho_df
 
-    def get_fukusho_odds_table(self, sleep_time=0.2) -> pd.DataFrame:
+    def get_fukusho_odds(self, sleep_time=0.2) -> pd.DataFrame:
         # 複勝
         element = self._get_element(By.ID, "odds_navi_b1")
         self._click(element)
         time.sleep(sleep_time)
-        tansho_df = self.__get_tanpuku_odds_table(1)
+        tansho_df = self.__get_tanpuku_odds(1)
         return tansho_df
 
-    def __get_tanpuku_odds_table(self, idx) -> pd.DataFrame:
+    def __get_tanpuku_odds(self, idx) -> pd.DataFrame:
         # 0なら単勝、1なら複勝のテーブルを取得
         elements = self._get_elements(
             By.CLASS_NAME, "RaceOdds_HorseList_Table")
@@ -526,13 +540,13 @@ class OddsScraper(SeleniumScraperBase):
         tanpuku_df.columns = ['First', 'Odds']
         return tanpuku_df
 
-    def get_wakuren_odds_table(self) -> pd.DataFrame:
+    def get_wakuren_odds(self) -> pd.DataFrame:
         # 枠連
         element = self._get_element(By.ID, "odds_navi_b3")
         self._click(element)
         raise NotImplementedError
 
-    def get_umaren_odds_table(self, sleep_time=0.2) -> pd.DataFrame:
+    def get_umaren_odds(self, sleep_time: float = 0.2) -> pd.DataFrame:
         # 馬連
         element = self._get_element(By.ID, "odds_navi_b4")
         self._click(element)
@@ -548,7 +562,7 @@ class OddsScraper(SeleniumScraperBase):
         umaren_df = pd.concat(umaren_df_list, axis=0)
         return umaren_df
 
-    def get_wide_odds_table(self, sleep_time=0.2) -> pd.DataFrame:
+    def get_wide_odds(self, sleep_time: float = 0.2) -> pd.DataFrame:
         # ワイド
         element = self._get_element(By.ID, "odds_navi_b5")
         self._click(element)
@@ -564,7 +578,7 @@ class OddsScraper(SeleniumScraperBase):
         wide_df = pd.concat(wide_df_list, axis=0)
         return wide_df
 
-    def get_umatan_odds_table(self, sleep_time=0.2) -> pd.DataFrame:
+    def get_umatan_odds(self, sleep_time: float = 0.2) -> pd.DataFrame:
         # 馬単
         element = self._get_element(By.ID, "odds_navi_b6")
         self._click(element)
@@ -580,7 +594,7 @@ class OddsScraper(SeleniumScraperBase):
         batan_df = pd.concat(batan_df_list, axis=0)
         return batan_df
 
-    def get_3renpuku_odds_table(self, sleep_time=0.2) -> pd.DataFrame:
+    def get_renpuku_odds(self, sleep_time: float = 0.2) -> pd.DataFrame:
         # 3連複
         element = self._get_element(By.ID, "odds_navi_b7")
         self._click(element)
@@ -620,7 +634,7 @@ class OddsScraper(SeleniumScraperBase):
         renpuku_df = renpuku_df.drop_duplicates().reset_index(drop=True)
         return renpuku_df
 
-    def get_3rentan_odds_table(self, sleep_time=0.2) -> pd.DataFrame:
+    def get_rentan_odds(self, sleep_time: float = 0.2) -> pd.DataFrame:
         # 3連単
         element = self._get_element(By.ID, "odds_navi_b8")
         self._click(element)
@@ -655,13 +669,42 @@ class OddsScraper(SeleniumScraperBase):
         tan3_df = pd.concat(tan3concat_df_list, axis=0)
         return tan3_df
 
+    def get_odds_df_dict(self, sleep_time: float = 0.2) -> Dict[str, pd.DataFrame]:
+        df_dict = dict()
+        # 単勝
+        df_dict['TANSHO'] = self.get_tansho_odds_table(sleep_time)
+        # 馬単
+        df_dict['UMATAN'] = self.get_umatan_odds_table(sleep_time)
+        # 3連単
+        df_dict['RENTAN'] = self.get_3rentan_odds_table(sleep_time)
+        # 馬連
+        df_dict['UMAREN'] = self.get_umaren_odds_table(sleep_time)
+        # 3連複
+        df_dict['RENPUKU'] = self.get_3renpuku_odds_table(sleep_time)
+        # ワイド
+        df_dict['WIDE'] = self.get_wide_odds_table(sleep_time)
+        return df_dict
+
 
 class AutoBuyer(SeleniumScraperBase):
+    """
+    IPATで買い目を自動登録するためのクラス
+    """
     BAKEN_TYPE = {
         'TANSHO': 0, 'UMAREN': 3, 'WIDE': 4,
         'UMATAN': 5, 'RENPUKU': 6, 'RENTAN': 7}
 
-    def __init__(self, executable_path, demo=True, wait_time=10):
+    def __init__(self, executable_path: str, demo: bool = True, wait_time: float = 10):
+        """
+        Parameters
+        ----------
+        executable_path : str
+            chrome driverまでのパス
+        demo : bool, default True
+            IPATのデモサイトへ繋げて動作確認を行うかのフラグ
+        wait_time : float, default 10
+            タイムアウトまでの時間
+        """
         super().__init__(executable_path, visible=True, wait_time=wait_time)
         if demo:
             self.url = 'https://www.jra.go.jp/IPAT_TAIKEN/s-pat/pw_010_i.html'
@@ -679,7 +722,19 @@ class AutoBuyer(SeleniumScraperBase):
             password='1111',
             p_ars='1234')
 
-    def login(self, inet_id, user_number, password, p_ars, sleep_time=1):
+    def login(self, inet_id: str, user_number: str, password: str, p_ars: str, sleep_time: float = 1):
+        """
+        ログイン時に利用する。
+
+        Parameters
+        ----------
+        inet_id : str
+        user_number : str
+        password : str
+        p_ars : str
+        sleep_time : float, default 1
+            各ページの遷移後にスリープを挟んで動作を安定させる
+        """
         # INET-ID
         element = self._get_element(By.NAME, 'inetid')
         element.send_keys(str(inet_id))
@@ -704,6 +759,14 @@ class AutoBuyer(SeleniumScraperBase):
         self._click(element)
 
     def select_baken_type(self, vote_type: str):
+        """
+        単勝、馬単など、馬券の種類を選択する
+
+        Parameters
+        ----------
+        vote_type : str
+            BAKEN_TYPEの中にあるどれかを選ぶ
+        """
         element = self._get_element(By.ID, 'bet-basic-type')
         assert vote_type in self.BAKEN_TYPE.keys(), '正しい投票方式を選択してください'
         idx = self.BAKEN_TYPE[vote_type]
