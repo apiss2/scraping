@@ -810,27 +810,27 @@ class AutoBuyer(SeleniumScraperBase):
         for col in ['First', 'Second', 'Third', 'Num', 'Odds', 'Type']:
             assert col in solver_df.columns
         # 単勝
-        tansho_df = solver_df.query('"Type"=="TANSHO"')
+        tansho_df = solver_df.query('Type=="TANSHO"')
         if len(tansho_df) > 0:
             self.vote_tansho_from_df(tansho_df)
         # 馬単
-        umatan_df = solver_df.query('"Type"=="UMATAN"')
+        umatan_df = solver_df.query('Type=="UMATAN"')
         if len(umatan_df) > 0:
             self.vote_umatan_from_df(umatan_df)
         # 馬連
-        umaren_df = solver_df.query('"Type"=="UMAREN"')
+        umaren_df = solver_df.query('Type=="UMAREN"')
         if len(umaren_df) > 0:
             self.vote_umaren_from_df(umaren_df)
         # ワイド
-        wide_df = solver_df.query('"Type"=="WIDE"')
+        wide_df = solver_df.query('Type=="WIDE"')
         if len(wide_df) > 0:
             self.vote_umatan_from_df(wide_df)
         # 3連複
-        renpuku_df = solver_df.query('"Type"=="RENPUKU"')
+        renpuku_df = solver_df.query('Type=="RENPUKU"')
         if len(renpuku_df) > 0:
             self.vote_renpuku_from_df(renpuku_df)
         # 3連単
-        rentan_df = solver_df.query('"Type"=="RENTAN"')
+        rentan_df = solver_df.query('Type=="RENTAN"')
         if len(rentan_df) > 0:
             self.vote_rentan_from_df(rentan_df)
 
