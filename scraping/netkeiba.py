@@ -234,7 +234,6 @@ class RaceidScraper(NetkeibaSoupScraperBase):
         return race_id_list
 
 
-#馬の過去成績データを処理するクラス
 class HorseResultsScraper(NetkeibaSoupScraperBase):
     '''馬の過去成績データをスクレイピングするクラス'''
     def __init__(self, user_id=None, password=None):
@@ -264,7 +263,6 @@ class HorseResultsScraper(NetkeibaSoupScraperBase):
         return df[new_columns]
 
 
-#血統データを処理するクラス
 class PedsScraper(NetkeibaSoupScraperBase):
     '''血統データをスクレイピングするクラス'''
     def __init__(self, user_id=None, password=None):
@@ -331,6 +329,14 @@ class RealTimeOddsScraper(SeleniumScraperBase):
         print('以下の数字からレースを選択し、select_racecourseメソッドを使用してください')
         for i, race in enumerate(self.race_list):
             print(f'{i}, ', race['text'])
+        self.__index_base = True
+
+    def change_indexbase(self):
+        '''
+        馬連以降のボタンのインデックスがページによって違う（要検証）
+        1だけずれるので、bool値を加算するかどうかで制御する
+        '''
+        self.__index_base = not self.__index_base
 
     def get_tansho_odds(self) -> pd.DataFrame:
         assert self.status == 3
@@ -342,7 +348,7 @@ class RealTimeOddsScraper(SeleniumScraperBase):
 
     def get_umaren_odds(self):
         assert self.status == 3
-        self._select_baken_type(1)
+        self._select_baken_type(1 + self.__index_base)
         dfs = self._get_odds_list()
         l = list()
         for i, df in enumerate(dfs):
@@ -355,7 +361,7 @@ class RealTimeOddsScraper(SeleniumScraperBase):
 
     def get_wide_odds(self):
         assert self.status == 3
-        self._select_baken_type(2)
+        self._select_baken_type(2 + self.__index_base)
         dfs = self._get_odds_list()
         l = list()
         for i, df in enumerate(dfs):
@@ -368,7 +374,7 @@ class RealTimeOddsScraper(SeleniumScraperBase):
 
     def get_umatan_odds(self):
         assert self.status == 3
-        self._select_baken_type(3)
+        self._select_baken_type(3 + self.__index_base)
         dfs = self._get_odds_list()
         l = list()
         for i, df in enumerate(dfs):
@@ -382,7 +388,7 @@ class RealTimeOddsScraper(SeleniumScraperBase):
 
     def get_renpuku_odds(self):
         assert self.status == 3
-        self._select_baken_type(4)
+        self._select_baken_type(4 + self.__index_base)
         elements = self._get_elements(By.CLASS_NAME, 'fuku3_list')
         l = list()
         for content in elements:
@@ -400,7 +406,7 @@ class RealTimeOddsScraper(SeleniumScraperBase):
         return df
 
     def get_rentan_odds(self):
-        self._select_baken_type(5)
+        self._select_baken_type(5 + self.__index_base)
         element = self._get_element(By.ID, 'odds_list')
         elements = element.find_elements(By.CLASS_NAME, 'tan3_list')
         l = list()
