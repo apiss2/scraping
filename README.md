@@ -1,6 +1,8 @@
 # scraping
 自分用のスクレイピングコードをまとめたディレクトリです。
 
+[ドキュメントはここから見れます](https://scraping.readthedocs.io/ja/latest/index.html)
+
 以下の3サイトに対応しています。
 - 競馬([netkeiba](https://www.netkeiba.com/))
 - 競輪([netkeirin](https://keirin.netkeiba.com/))
