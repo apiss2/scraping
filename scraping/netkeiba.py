@@ -711,6 +711,12 @@ class OddsScraper(SeleniumScraperBase):
 class AutoBuyer(SeleniumScraperBase):
     """
     IPATで買い目を自動登録するためのクラス
+
+    Notes
+    -----
+    買い目を自動入力する際に、投票内容をセットするボタンが
+    画面下側に無い状態（右側にある状態）で実行しないと、
+    ボタンが隠れてクリックできず、エラーになる。
     """
     BAKEN_TYPE = {
         'TANSHO': 0, 'UMAREN': 3, 'WIDE': 4,
