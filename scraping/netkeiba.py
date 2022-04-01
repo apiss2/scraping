@@ -35,6 +35,7 @@ class NetkeibaSoupScraperBase(SoupScraperBase):
         super().__init__(login_url=url, login_info=info)
         self.base_url = base_url
         self.soup = None
+        self.race_id = None
 
     def get_soup(self, race_id: Union[str, int]):
         """ページの情報をBeautifulSoup形式で保持する。
@@ -45,6 +46,7 @@ class NetkeibaSoupScraperBase(SoupScraperBase):
             8桁のレースID
         """
         self.soup = self._get_soup(self.base_url.format(race_id), encoding='EUC-JP')
+        self.race_id = race_id
         return self.soup
 
 
@@ -55,93 +57,136 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
     FOREIGNHORSE_LIST = ['国際', '混']
     RACECLASS_LIST = ['オープン', '未勝利', '新馬']
     MAIN_DF_COLUMNS = [
-        '着順', '枠番', '馬番', '馬名', '性齢', '斤量', '騎手',
-        'タイム', '着差', '単勝', '人気', '馬体重', '調教師']
-    PLEMIUS_COLUMNS = ['ﾀｲﾑ指数', '調教ﾀｲﾑ', '厩舎ｺﾒﾝﾄ']
+        '着順', '枠番', '馬番', '性齢', '斤量', 'タイム',
+        '上り', '単勝', '人気', '馬体重', '賞金(万円)']
+    PLEMIUS_COLUMNS = ['ﾀｲﾑ指数', '調教ﾀｲﾑ', '厩舎ｺﾒﾝﾄ', '備考']
 
     def __init__(self, user_id=None, password=None):
         super().__init__(
             base_url="https://db.netkeiba.com/race/{}",
             user_id=user_id, password=password)
 
-    def get_main_df(self) -> pd.DataFrame:
+    def get_main_df(self, race_id: Union[int, str] = None) -> pd.DataFrame:
         """馬ごとの情報をスクレイピングする"""
+        if race_id is not None:
+            self.get_soup(race_id)
         assert self.soup is not None
         rows = self.soup.find(
             'table', attrs={"class": "race_table_01"}).find_all('tr')
         data = [[col.text.replace('\n', '') for col in row.findAll(
             ['td', 'th'])] for row in rows]
         cols = self.MAIN_DF_COLUMNS + self.PLEMIUS_COLUMNS if self.login else self.MAIN_DF_COLUMNS
+        #return pd.DataFrame(data[1:], columns=data[0])
         main_df = pd.DataFrame(data[1:], columns=data[0])[cols]
-        main_df['horse_id'] = self.get_horse_id_list()
-        main_df['jockey_id'] = self.get_jockey_id_list()
+        main_df['race_id'] = self.race_id
+        main_df['horse_id'] = self.__get_horse_id_list()
+        main_df['jockey_id'] = self.__get_jockey_id_list()
+        main_df['trainer_id'] = self.__get_trainer_id_list()
+        main_df['owner_id'] = self.__get_owner_id_list()
         return main_df
 
-    def get_horse_id_list(self) -> List[int]:
+    def __get_horse_id_list(self) -> List[int]:
         """DataBaseページに掲載されている馬のIDリストを取得する"""
         return self.__get_id_list('horse')
 
-    def get_jockey_id_list(self) -> List[int]:
+    def __get_jockey_id_list(self) -> List[int]:
         """DataBaseページに掲載されている騎手のIDリストを取得する"""
         return self.__get_id_list('jockey')
 
+    def __get_trainer_id_list(self) -> List[int]:
+        """DataBaseページに掲載されている調教師のIDリストを取得する"""
+        return self.__get_id_list('trainer')
+
+    def __get_owner_id_list(self) -> List[int]:
+        """DataBaseページに掲載されている馬主のIDリストを取得する"""
+        return self.__get_id_list('owner')
+
     def __get_id_list(self, id_type: str) -> List[str]:
-        assert id_type == 'horse' or id_type == 'jockey'
         atag_list = self.soup.find("table", attrs={"summary": "レース結果"}).find_all(
             "a", attrs={"href": re.compile(f"^/{id_type}")})
         id_list = [re.findall(r"\d+", atag["href"])[0] for atag in atag_list]
         return id_list
 
-    def get_race_info(self) -> dict:
+    def get_race_info(self, race_id: Union[int, str] = None) -> dict:
         """レースの基本情報を取得する"""
+        if race_id is not None:
+            self.get_soup(race_id)
         assert self.soup is not None
+        info = {'race_id': self.race_id}
         # レース情報のスクレイピング
         race_name = self.soup.find(
             "dl", attrs={"class": "racedata fc"}).find('h1').text
-        race_info_list = [race_name]
         data_intro = self.soup.find(
             "div", attrs={"class": "data_intro"}).find_all("p")
-        race_info_list += data_intro[0].find(
-            'span').text.replace('\xa0', '').split('/')
-        race_info_list += data_intro[1].text.replace('\xa0', '').split(' ')
-        return self.__parse_race_info(race_info_list)
+        # 情報の整理
+        info.update(self.__parse_racename(race_name))
+        info.update(self.__parse1(data_intro[0].find("span").text))
+        info.update(self.__parse2(data_intro[1].text))
+        return info
 
-    def __parse_race_info(self, race_info_list) -> dict:
-        assert 8 <= len(race_info_list) <= 9
-        race_info = {'レース名': race_info_list[0]}
-        race_type = race_info_list[1]
-        race_info['周回方向'] = '右' if '右' in race_type else '左' if '右' in race_type else '不明'
-        race_info['コースタイプ'] = '障害' if '障' in race_type else 'ダート' if 'ダ' in race_type else '芝'
-        race_info['馬場状態'] = race_info_list[3].split(' : ')[-1]
-        race_info['コース長'] = re.findall(r'\d{3,4}m', race_type)[0][:-1]
-        race_info['天候'] = race_info_list[2].split(' : ')[1]
-        race_info['日時'] = race_info_list[5]
-        race_info['発走'] = race_info_list[4].split(' : ')[1]
-        # 開催場所、タイミング
-        hold_n = re.search(r'\d+回', race_info_list[6])
-        day_n = re.search(r'\d+日目', race_info_list[6])
-        racecourse = race_info_list[6][hold_n.span()[1]:day_n.span()[0]]
-        race_info['開催回'] = hold_n[0]
-        race_info['開催日'] = day_n[0]
-        race_info['開催会場'] = racecourse
-        # 条件
-        s = race_info_list[7] if len(
-            race_info_list) == 8 else race_info_list[7] + race_info_list[8]
-        sep = s.find('[') if (s.find(
-            '[') != -1) and (s.find('[') < s.find('(')) else s.find('(')
-        # TODO: スクレイピング時点でレース条件に関する詳細区分を行う
-        race_info['レース条件_1'] = s[:sep]
-        race_info['レース条件_2'] = s[sep:]
-        return race_info
+    def __defaultfind(self, pattern, s, default=''):
+        cont = re.findall(pattern, s)
+        if len(cont) > 0:
+            return cont[0]
+        return default
 
-    def get_pay_df(self) -> pd.DataFrame:
+    def __parse_racename(self, race_name: str):
+        gn = self.__defaultfind("\(G\d\)", race_name)
+        d = dict()
+        d['race_name'] = race_name
+        d['G1'] = '1' in gn
+        d['G2'] = '2' in gn
+        d['G3'] = '3' in gn
+        return d
+
+    def __parse1(self, text: str):
+        d = dict()
+        d['レース種別'] = self.__defaultfind('[ダ芝障]', text)
+        d['周回方向'] = self.__defaultfind('[左右]', text)
+        d['コース長'] = int(self.__defaultfind('\d{3,4}m', text, default='-1 ')[:-1])
+        d['天気'] = self.__defaultfind('[晴曇雨小雪]{1,2}', text)
+        d['コース状態'] = self.__defaultfind('[良稍重不]{1,2}', text)
+        d['出走時間'] = self.__defaultfind('\d{2}:\d{2}', text)
+        return d
+
+    def __parse2(self, text: str):
+        d = {'年': '', '月': '', '日': ''}
+        cont = self.__defaultfind('\d{4}年\d{1,2}月\d{1,2}日', text, default=None)
+        if cont is not None:
+            date = datetime.datetime.strptime(cont, '%Y年%m月%d日')
+            d['年'] = date.year
+            d['月'] = date.month
+            d['日'] = date.day
+        pattern = '|'.join(['[新馬未勝利オープン]{2,4}', '\d+万', '\d勝クラス'])
+        d['レースランク'] = self.__defaultfind(pattern, text)
+        d['地方'] = self.__defaultfind('[特指]{1,2}', text)
+        d['外国'] = self.__defaultfind('[国際混]{1,2}', text)
+        d['条件'] = self.__defaultfind('[ハンデ馬齢別定量]{2,3}', text)
+        return d
+
+    def get_pay_df(self, race_id: Union[int, str] = None) -> pd.DataFrame:
         """レースの払い戻し情報を取得する"""
+        if race_id is not None:
+            self.get_soup(race_id)
         assert self.soup is not None
         tables = self.soup.find_all('table', attrs={"class": "pay_table_01"})
         rows = tables[0].find_all('tr') + tables[1].find_all('tr')
         data = [[re.sub(r"\<.+?\>", "", str(col).replace('<br/>', 'br')).replace(
             '\n', '') for col in row.findAll(['td', 'th'])] for row in rows]
-        return pd.DataFrame(data)
+        pay_df = pd.DataFrame(data)
+        same_arrival = 'br' in pay_df.iloc[-1, 1]
+        cols = ['券種', '馬番号', '払戻', '人気']
+        l = list()
+        for row in pay_df.values:
+            for i in range(len(row[1].split('br'))):
+                d = {'race_id': self.race_id, 'same_arraival': same_arrival}
+                for col_idx, key in enumerate(cols):
+                    if key == '券種':
+                        d[key] = row[col_idx].split('br')[0]
+                    else:
+                        d[key] = row[col_idx].split('br')[i]
+                l.append(d)
+        return pd.DataFrame(l)
 
 
 class UmabashiraScraper(object):
@@ -183,11 +228,11 @@ class RaceidScraper(NetkeibaSoupScraperBase):
         List[str]
             レースIDのリスト
         """
-        today = datetime.datetime.today()
-        assert date <= today, '未来の日付が入力されています'
-        oneweekago = today - datetime.timedelta(days=7)
-        if oneweekago < date <= today:
-            warnings.warn('直近のレースは情報が更新されていない場合があります')
+        # today = datetime.datetime.today()
+        # assert date <= today, '未来の日付が入力されています'
+        # oneweekago = today - datetime.timedelta(days=7)
+        # if oneweekago < date <= today:
+        #     warnings.warn('直近のレースは情報が更新されていない場合があります')
         date = f'{date.year:04}{date.month:02}{date.day:02}'
         self.get_soup(date)
         race_list = self.soup.find('div', attrs={"class": 'race_list fc'})
