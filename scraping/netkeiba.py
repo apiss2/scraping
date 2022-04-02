@@ -76,7 +76,6 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
         data = [[col.text.replace('\n', '') for col in row.findAll(
             ['td', 'th'])] for row in rows]
         cols = self.MAIN_DF_COLUMNS + self.PLEMIUS_COLUMNS if self.login else self.MAIN_DF_COLUMNS
-        #return pd.DataFrame(data[1:], columns=data[0])
         main_df = pd.DataFrame(data[1:], columns=data[0])[cols]
         main_df['race_id'] = self.race_id
         main_df['horse_id'] = self.__get_horse_id_list()
