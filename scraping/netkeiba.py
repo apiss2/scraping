@@ -98,12 +98,23 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
 
     def __get_owner_id_list(self) -> List[int]:
         """DataBaseページに掲載されている馬主のIDリストを取得する"""
-        return self.__get_id_list('owner')
+        return self.__get_id_list_from_col(19)
 
     def __get_id_list(self, id_type: str) -> List[str]:
         atag_list = self.soup.find("table", attrs={"summary": "レース結果"}).find_all(
             "a", attrs={"href": re.compile(f"^/{id_type}")})
         id_list = [re.findall(r"\d+", atag["href"])[0] for atag in atag_list]
+        return id_list
+
+    def __get_id_list_from_col(self, col_idx: int) -> List[str]:
+        id_list = list()
+        tr_list = self.soup.find('table', attrs={'class': 'race_table_01'}).find_all('tr')[1:]
+        for tr in tr_list:
+            atag = tr.find_all('td')[col_idx].find('a')
+            if atag is None:
+                id_list.append('')
+            else:
+                id_list.append(re.findall(r"\d+", atag["href"])[0])
         return id_list
 
     def get_race_info(self, race_id: Union[int, str] = None) -> dict:
@@ -173,12 +184,11 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
         data = [[re.sub(r"\<.+?\>", "", str(col).replace('<br/>', 'br')).replace(
             '\n', '') for col in row.findAll(['td', 'th'])] for row in rows]
         pay_df = pd.DataFrame(data)
-        same_arrival = 'br' in pay_df.iloc[-1, 1]
         cols = ['券種', '馬番号', '払戻', '人気']
         l = list()
         for row in pay_df.values:
             for i in range(len(row[1].split('br'))):
-                d = {'race_id': self.race_id, 'same_arraival': same_arrival}
+                d = {'race_id': self.race_id}
                 for col_idx, key in enumerate(cols):
                     if key == '券種':
                         d[key] = row[col_idx].split('br')[0]
