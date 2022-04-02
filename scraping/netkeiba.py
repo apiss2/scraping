@@ -157,7 +157,7 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
             d['年'] = date.year
             d['月'] = date.month
             d['日'] = date.day
-        pattern = '|'.join(['[新馬未勝利オープン]{2,4}', '\d+万', '\d勝クラス'])
+        pattern = '|'.join(['[新馬未勝利出走オープン]{2,4}', '\d+万', '\d勝クラス'])
         d['レースランク'] = self.__defaultfind(pattern, text)
         d['地方'] = self.__defaultfind('[特指]{1,2}', text)
         d['外国'] = self.__defaultfind('[国際混]{1,2}', text)
