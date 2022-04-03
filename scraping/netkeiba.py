@@ -219,6 +219,32 @@ class UmabashiraScraper(object):
         return dfs[12]
 
 
+class UmabashiraLimitedScraper(SoupScraperBase):
+    '''過去の情報を含まずに、今回のレース情報だけを馬柱から抽出する。
+    DatabaseScraperのmain_dfなどと照合できるようにレースIDと馬番号だけは残し、
+    main_dfやrace_infoなどに含まれている情報は抽出しない。
+    '''
+    def __init__(self):
+        super().__init__(login_url=None, login_info=None)
+        self.base_url = 'http://jiro8.sakura.ne.jp/index.php?code={}'
+        self.cols = [
+            'race_id', '馬番', 'ペース脚質3F', 'コーナー通過順位',
+            '先行指数', 'ペース指数', '上がり指数', 'スピード指数',
+            '本紙)独自指数', 'SP指数補正後']
+
+    def get_umabashira(self, race_id: Union[str, int]) -> pd.DataFrame:
+        code = str(race_id)[2:]
+        soup = self._get_soup(self.base_url.format(code))
+        table = soup.find('table', attrs={"class": 'c1'})
+        rows = table.find_all('tr', recursive=False)
+        data = [[race_id for _ in range(len(rows[1].find_all('td')))]]
+        for idx in [1, 10, 11, 13, 14, 15, 16, 18, 19]:
+            data.append([col.text for col in rows[idx].find_all('td')])
+        df = pd.DataFrame(data).T.iloc[:-1]
+        df.columns = self.cols
+        return df
+
+
 class RaceidScraper(NetkeibaSoupScraperBase):
     def __init__(self):
         super().__init__(base_url="https://db.netkeiba.com/race/list/{}")
