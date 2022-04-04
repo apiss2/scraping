@@ -52,14 +52,13 @@ class NetkeibaSoupScraperBase(SoupScraperBase):
 
 class DatabaseScraper(NetkeibaSoupScraperBase):
     '''入力されたレースIDに従ってNetkeibaのDatabaseページから情報を取得するクラス'''
-    HANDICAP_LIST = ['ハンデ', '馬齢', '別定', '定量']
-    LOCALHORSE_LIST = ['指', '特指']
-    FOREIGNHORSE_LIST = ['国際', '混']
-    RACECLASS_LIST = ['オープン', '未勝利', '新馬']
     MAIN_DF_COLUMNS = [
         '着順', '枠番', '馬番', '性齢', '斤量', 'タイム',
         '上り', '単勝', '人気', '馬体重', '賞金(万円)']
     PLEMIUS_COLUMNS = ['ﾀｲﾑ指数', '調教ﾀｲﾑ', '厩舎ｺﾒﾝﾄ', '備考']
+    RACECOURSE_DICT = {
+        1: '札幌', 2: '函館', 3: '福島', 4: '新潟', 5: '東京',
+        6: '中山', 7: '中京', 8: '京都', 9: '阪神', 10: '小倉'}
 
     def __init__(self, user_id=None, password=None):
         super().__init__(
@@ -130,6 +129,7 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
             "div", attrs={"class": "data_intro"}).find_all("p")
         # 情報の整理
         info.update(self.__parse_racename(race_name))
+        info.update(self.__parse_race_id(self.race_id))
         info.update(self.__parse1(data_intro[0].find("span").text))
         info.update(self.__parse2(data_intro[1].text))
         return info
@@ -143,16 +143,23 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
     def __parse_racename(self, race_name: str):
         gn = self.__defaultfind("\(G\d\)", race_name)
         d = dict()
-        d['race_name'] = race_name
         d['G1'] = '1' in gn
         d['G2'] = '2' in gn
         d['G3'] = '3' in gn
         return d
 
+    def __parse_race_id(self, race_id: Union[str, int]):
+        d = dict()
+        d['レース場'] = self.RACECOURSE_DICT[int(str(race_id)[4:6])]
+        d['開催'] = int(str(race_id)[6:8])
+        d['N日目'] = int(str(race_id)[8:10])
+        d['Nレース目'] = int(str(race_id)[10:12])
+        return d
+
     def __parse1(self, text: str):
         d = dict()
         d['レース種別'] = self.__defaultfind('[ダ芝障]', text)
-        d['周回方向'] = self.__defaultfind('[左右]', text)
+        d['周回方向'] = self.__defaultfind('[左右]', text, '無')
         d['コース長'] = int(self.__defaultfind('\d{3,4}m', text, default='-1 ')[:-1])
         d['天気'] = self.__defaultfind('[晴曇雨小雪]{1,2}', text)
         d['コース状態'] = self.__defaultfind('[良稍重不]{1,2}', text)
@@ -164,14 +171,15 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
         cont = self.__defaultfind('\d{4}年\d{1,2}月\d{1,2}日', text, default=None)
         if cont is not None:
             date = datetime.datetime.strptime(cont, '%Y年%m月%d日')
+            d['日付'] = datetime.datetime.strftime(date, '%Y-%m-%d')
             d['年'] = date.year
             d['月'] = date.month
             d['日'] = date.day
         pattern = '|'.join(['[新馬未勝利出走オープン]{2,4}', '\d+万', '\d勝クラス'])
         d['レースランク'] = self.__defaultfind(pattern, text)
-        d['地方'] = self.__defaultfind('[特指]{1,2}', text)
-        d['外国'] = self.__defaultfind('[国際混]{1,2}', text)
-        d['条件'] = self.__defaultfind('[ハンデ馬齢別定量]{2,3}', text)
+        d['地方'] = self.__defaultfind('[特指]{1,2}', text, default='無')
+        d['外国'] = self.__defaultfind('[国際混]{1,2}', text, default='無')
+        d['条件'] = self.__defaultfind('[ハンデ馬齢別定量]{2,3}', text, default='無')
         return d
 
     def get_pay_df(self, race_id: Union[int, str] = None) -> pd.DataFrame:
