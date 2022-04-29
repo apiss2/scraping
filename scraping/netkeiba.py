@@ -142,15 +142,18 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
 
     def __parse_racename(self, race_name: str):
         gn = self.__defaultfind("\(G\d\)", race_name)
-        d = dict()
-        d['G1'] = '1' in gn
-        d['G2'] = '2' in gn
-        d['G3'] = '3' in gn
+        d = {'G123': '-'}
+        if '1' in gn:
+            d['G123'] = 'G1'
+        elif '2' in gn:
+            d['G123'] = 'G2'
+        elif '3' in gn:
+            d['G123'] = 'G3'
         return d
 
     def __parse_race_id(self, race_id: Union[str, int]):
         d = dict()
-        d['レース場'] = self.RACECOURSE_DICT[int(str(race_id)[4:6])]
+        d['馬場'] = self.RACECOURSE_DICT[int(str(race_id)[4:6])]
         d['開催'] = int(str(race_id)[6:8])
         d['N日目'] = int(str(race_id)[8:10])
         d['Nレース目'] = int(str(race_id)[10:12])
