@@ -121,7 +121,7 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
         if race_id is not None:
             self.get_soup(race_id)
         assert self.soup is not None
-        info = {'race_id': self.race_id}
+        info = {'race_id': int(self.race_id)}
         # レース情報のスクレイピング
         race_name = self.soup.find(
             "dl", attrs={"class": "racedata fc"}).find('h1').text
