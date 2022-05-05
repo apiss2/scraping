@@ -260,7 +260,7 @@ class RaceidScraper(NetkeibaSoupScraperBase):
     def __init__(self):
         super().__init__(base_url="https://db.netkeiba.com/race/list/{}")
 
-    def get_raceID_list_from_date(self, date: datetime.date) -> List[str]:
+    def get_raceID_list_from_date(self, date: datetime.date) -> List[int]:
         """指定した日付に開催されたレースのレースID
 
         Parameters
@@ -289,7 +289,7 @@ class RaceidScraper(NetkeibaSoupScraperBase):
         race_id_list = list()
         for href in href_list:
             for s in re.findall('[0-9]{12}', href):
-                race_id_list.append(s)
+                race_id_list.append(int(s))
         return list(set(race_id_list))
 
     def get_monthly_raceID_list(self, year: int, month: int, sleep_time: float = 1, leave: bool = True) -> List[str]:
