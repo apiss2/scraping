@@ -940,7 +940,7 @@ class AutoBuyer(SeleniumScraperBase):
         # ワイド
         wide_df = solver_df.query('Type=="WIDE"')
         if len(wide_df) > 0:
-            self.vote_umatan_from_df(wide_df)
+            self.vote_wide_from_df(wide_df)
         # 3連複
         renpuku_df = solver_df.query('Type=="RENPUKU"')
         if len(renpuku_df) > 0:
