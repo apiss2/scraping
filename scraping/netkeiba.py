@@ -208,6 +208,25 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
                 l.append(d)
         return pd.DataFrame(l)
 
+    def get_corner_df(self, race_id: Union[int, str] = None):
+        if race_id is not None:
+            self.get_soup(race_id)
+        assert self.soup is not None
+        df = pd.read_html(
+            str(self.soup.find('table', attrs={"summary": 'コーナー通過順位'})))[0]
+        df.columns = ['コーナー', '通過順']
+        return df
+
+    def get_laptime_df(self, race_id: Union[int, str] = None):
+        if race_id is not None:
+            self.get_soup(race_id)
+        assert self.soup is not None
+        df = pd.read_html(
+            str(self.soup.find('table', attrs={"summary": 'ラップタイム'})))[0].T
+        df.columns = ['ラップ', 'ペース']
+        df = df.iloc[1:].reset_index(drop=True)
+        return df
+
 
 class UmabashiraScraper(object):
     '''入力されたレースIDに従って馬柱を取得するクラス'''
