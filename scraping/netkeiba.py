@@ -1,5 +1,4 @@
 import datetime
-import warnings
 import re
 import time
 from typing import Union, List, Dict
@@ -373,15 +372,33 @@ class HorseResultsScraper(NetkeibaSoupScraperBase):
         return df[new_columns]
 
 
-class PedsScraper(NetkeibaSoupScraperBase):
-    '''血統データをスクレイピングするクラス'''
-    def __init__(self, user_id=None, password=None):
+class HorseDataScraper(NetkeibaSoupScraperBase):
+    '''馬の情報をスクレイピングするクラス'''
+    def __init__(self):
         super().__init__(
             base_url='https://db.netkeiba.com/horse/ped/{}',
-            user_id=user_id, password=password)
+            user_id=None, password=None)
+
+    def get_birthday(self, horse_id: Union[int, str]) -> str:
+        """誕生日
+
+        Parameters
+        ----------
+        horse_id : Union[int, str]
+            馬ID
+
+        Returns
+        -------
+        str
+            2016-07-16など、日付を表す文字列
+        """
+        url = f'https://db.netkeiba.com/horse/{horse_id}/'
+        s = pd.read_html(url)[1].iloc[0, 1]
+        dt = datetime.datetime.strptime(s, '%Y年%m月%d日')
+        return dt.strftime('%Y-%m-%d')
 
     def get_peds(self, horse_id: Union[int, str]):
-        """
+        """血統データをスクレイピングするメソッド
         Parameters:
         ----------
         horse_id : Union[int, str]
