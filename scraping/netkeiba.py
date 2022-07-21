@@ -1,7 +1,7 @@
 import datetime
 import re
 import time
-from typing import Union, List, Dict
+from typing import Dict, List, Union
 
 import pandas as pd
 import requests
@@ -372,15 +372,31 @@ class HorseResultsScraper(NetkeibaSoupScraperBase):
         return df[new_columns]
 
 
-class HorseDataScraper(NetkeibaSoupScraperBase):
+class HorseDataScraper(SoupScraperBase):
     '''馬の情報をスクレイピングするクラス'''
-    def __init__(self):
-        super().__init__(
-            base_url='https://db.netkeiba.com/horse/ped/{}',
-            user_id=None, password=None)
+
+    def get_sex(self, horse_id: Union[int, str]) -> str:
+        """性別をスクレイピングするメソッド
+
+        Parameters
+        ----------
+        horse_id : Union[int, str]
+            _description_
+
+        Returns
+        -------
+        str
+            _description_
+        """
+        base_url = 'https://db.netkeiba.com/horse/{}/'
+        soup = self._get_soup(base_url.format(horse_id), encoding='EUC-JP')
+        s = soup.find('p', attrs={"class": "txt_01"})
+        cont = re.findall('[セ牡牝]', s.text)
+        assert len(cont) != 0, '性別が判定できませんでした'
+        return cont[0]
 
     def get_birthday(self, horse_id: Union[int, str]) -> str:
-        """誕生日
+        """誕生日をスクレイピングするメソッド
 
         Parameters
         ----------
@@ -409,9 +425,10 @@ class HorseDataScraper(NetkeibaSoupScraperBase):
         peds_df : pandas.DataFrame
             全血統データをまとめてDataFrame型にしたもの
         """
+        base_url = 'https://db.netkeiba.com/horse/ped/{}'
 
         id_list = list()
-        soup = self.get_soup(horse_id)
+        soup = self._get_soup(base_url.format(horse_id))
         table = soup.find('table', attrs={"class": "blood_table"})
         for idx, span in enumerate(['16', '8', '4', '2', '']):
             for row in table.find_all("td", attrs={"rowspan": span}):
