@@ -8,7 +8,7 @@ from selenium.webdriver.support.expected_conditions import (
     visibility_of_all_elements_located, visibility_of_element_located)
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support.select import Select
-
+from selenium.webdriver.remote.webelement import WebElement
 
 class SeleniumScraperBase(ABC):
     '''
@@ -37,20 +37,20 @@ class SeleniumScraperBase(ABC):
     def __del__(self):
         self.driver.close()
 
-    def _visit_page(self, url):
+    def _visit_page(self, url) -> None:
         self.driver.get(url)
 
-    def _get_element(self, by, text):
+    def _get_element(self, by, text) -> WebElement:
         return self.wait.until(visibility_of_element_located((by, text)))
 
-    def _get_elements(self, by, text):
+    def _get_elements(self, by, text) -> List[WebElement]:
         return self.wait.until(visibility_of_all_elements_located((by, text)))
 
-    def _click(self, element):
+    def _click(self, element) -> None:
         self.driver.execute_script("arguments[0].scrollIntoView(false);", element)
         element.click()
 
-    def _select(self, element, idx):
+    def _select(self, element, idx) -> None:
         select = Select(element)
         select.select_by_index(idx)
 
