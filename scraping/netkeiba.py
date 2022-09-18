@@ -551,7 +551,7 @@ class RealTimeOddsScraper(SeleniumScraperBase):
         element = self._get_element(By.ID, 'odds_list')
         dfs = pd.read_html(element.get_attribute('outerHTML'))
         horse_num = dfs[0].iloc[:, 0].max()
-        itr = itertools.permutations([i+1 for i in range(horse_num)], 2)
+        itr = itertools.combinations([i+1 for i in range(horse_num-1)], 2)
         for i, c in enumerate(itr):
             dfs[i].columns = ['Third', 'Odds']
             dfs[i]['First'] = int(c[0])
