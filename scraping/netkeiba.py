@@ -1,4 +1,5 @@
 import datetime
+import itertools
 import re
 import time
 from typing import Dict, List, Union
@@ -547,41 +548,31 @@ class RealTimeOddsScraper(SeleniumScraperBase):
     def get_renpuku_odds(self):
         assert self.status == 3
         self._select_baken_type(4 + self.__index_base)
-        elements = self._get_elements(By.CLASS_NAME, 'fuku3_list')
-        l = list()
-        for content in elements:
-            li_list = content.find_elements(By.TAG_NAME, 'li')
-            for li in li_list:
-                text = li.find_element(By.TAG_NAME, 'caption')
-                umas = text.get_attribute('textContent').split('-')
-                df = pd.read_html(li.get_attribute('outerHTML'))[0]
-                df.columns = ['Third', 'Odds']
-                df['First'] = int(umas[0])
-                df['Second'] = int(umas[1])
-                l.append(df)
-        df = pd.concat(l)[['First', 'Second', 'Third', 'Odds']]
-        df.reset_index(drop=True, inplace=True)
-        return df
+        element = self._get_element(By.ID, 'odds_list')
+        dfs = pd.read_html(element.get_attribute('outerHTML'))
+        horse_num = dfs[0].iloc[:, 0].max()
+        itr = itertools.permutations([i+1 for i in range(horse_num)], 2)
+        for i, c in enumerate(itr):
+            dfs[i].columns = ['Third', 'Odds']
+            dfs[i]['First'] = int(c[0])
+            dfs[i]['Second'] = int(c[1])
+        df = pd.concat(dfs)[['First', 'Second', 'Third', 'Odds']]
+        df = df.dropna().drop_duplicates()
+        return df.reset_index(drop=True)
 
     def get_rentan_odds(self):
         self._select_baken_type(5 + self.__index_base)
         element = self._get_element(By.ID, 'odds_list')
-        elements = element.find_elements(By.CLASS_NAME, 'tan3_list')
-        l = list()
-        for content in elements:
-            li_list = content.find_elements(By.TAG_NAME, 'li')
-            for li in li_list:
-                nums = li.find_elements(By.CLASS_NAME, 'num')
-                nums = [num.get_attribute('textContent') for num in nums]
-                df = pd.read_html(li.get_attribute('outerHTML'))[0]
-                df.columns = ['Third', 'Odds']
-                df['First'] = int(nums[0])
-                df['Second'] = int(nums[1])
-                l.append(df)
-        df = pd.concat(l)[['First', 'Second', 'Third', 'Odds']]
-        idx = (df.First == df.Third) | (df.Second == df.Third)
-        df = df[~idx].reset_index(drop=True)
-        return df
+        dfs = pd.read_html(element.get_attribute('outerHTML'))
+        horse_num = dfs[0].iloc[:, 0].max()
+        itr = itertools.permutations([i+1 for i in range(horse_num)], 2)
+        for i, c in enumerate(itr):
+            dfs[i].columns = ['Third', 'Odds']
+            dfs[i]['First'] = int(c[0])
+            dfs[i]['Second'] = int(c[1])
+        df = pd.concat(dfs)[['First', 'Second', 'Third', 'Odds']]
+        df = df.dropna().drop_duplicates()
+        return df.reset_index(drop=True)
 
     def _get_odds_list(self):
         assert self.status == 3
