@@ -1,4 +1,5 @@
 import datetime
+import itertools
 import re
 import time
 from typing import Dict, List, Union
@@ -16,6 +17,7 @@ from .base import SeleniumScraperBase, SoupScraperBase
 
 class NetkeibaSoupScraperBase(SoupScraperBase):
     '''Netkeibaの静的サイトのスクレイピングに使うベースクラス'''
+
     def __init__(self, base_url: str, user_id: str = None, password: str = None):
         """
         Parameters
@@ -44,7 +46,8 @@ class NetkeibaSoupScraperBase(SoupScraperBase):
         race_id : str or int
             8桁のレースID
         """
-        self.soup = self._get_soup(self.base_url.format(race_id), encoding='EUC-JP')
+        self.soup = self._get_soup(
+            self.base_url.format(race_id), encoding='EUC-JP')
         self.race_id = race_id
         return self.soup
 
@@ -73,7 +76,8 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
             'table', attrs={"class": "race_table_01"}).find_all('tr')
         data = [[col.text.replace('\n', '') for col in row.findAll(
             ['td', 'th'])] for row in rows]
-        cols = self.MAIN_DF_COLUMNS + self.PLEMIUS_COLUMNS if self.login else self.MAIN_DF_COLUMNS
+        cols = self.MAIN_DF_COLUMNS + \
+            self.PLEMIUS_COLUMNS if self.login else self.MAIN_DF_COLUMNS
         main_df = pd.DataFrame(data[1:], columns=data[0])[cols]
         main_df['race_id'] = self.race_id
         main_df['horse_id'] = self.__get_horse_id_list()
@@ -106,7 +110,8 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
 
     def __get_id_list_from_col(self, col_idx: int) -> List[str]:
         id_list = list()
-        tr_list = self.soup.find('table', attrs={'class': 'race_table_01'}).find_all('tr')[1:]
+        tr_list = self.soup.find(
+            'table', attrs={'class': 'race_table_01'}).find_all('tr')[1:]
         for tr in tr_list:
             atag = tr.find_all('td')[col_idx].find('a')
             if atag is None:
@@ -162,7 +167,8 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
         d = dict()
         d['レース種別'] = self.__defaultfind('[ダ芝障]', text)
         d['周回方向'] = self.__defaultfind('[左右]', text, '無')
-        d['コース長'] = int(self.__defaultfind('\d{3,4}m', text, default='-1 ')[:-1])
+        d['コース長'] = int(self.__defaultfind(
+            '\d{3,4}m', text, default='-1 ')[:-1])
         d['天気'] = self.__defaultfind('[晴曇雨小雪]{1,2}', text)
         d['コース状態'] = self.__defaultfind('[良稍重不]{1,2}', text)
         d['出走時間'] = self.__defaultfind('\d{2}:\d{2}', text)
@@ -229,6 +235,7 @@ class DatabaseScraper(NetkeibaSoupScraperBase):
 
 class UmabashiraScraper(object):
     '''入力されたレースIDに従って馬柱を取得するクラス'''
+
     def __init__(self):
         self.base_url = 'http://jiro8.sakura.ne.jp/index.php?code={}'
 
@@ -253,6 +260,7 @@ class UmabashiraLimitedScraper(SoupScraperBase):
     DatabaseScraperのmain_dfなどと照合できるようにレースIDと馬番号だけは残し、
     main_dfやrace_infoなどに含まれている情報は抽出しない。
     '''
+
     def __init__(self):
         super().__init__(login_url=None, login_info=None)
         self.base_url = 'http://jiro8.sakura.ne.jp/index.php?code={}'
@@ -345,6 +353,7 @@ class RaceidScraper(NetkeibaSoupScraperBase):
 
 class HorseResultsScraper(NetkeibaSoupScraperBase):
     '''馬の過去成績データをスクレイピングするクラス'''
+
     def __init__(self, user_id=None, password=None):
         super().__init__(
             base_url='https://db.netkeiba.com/horse/{}',
@@ -440,7 +449,7 @@ class HorseDataScraper(SoupScraperBase):
                     if len(ret) != 0:
                         d = {
                             'name': atag.text.split('\n')[0],
-                            'horse_id':ret[0].split('/')[-1],
+                            'horse_id': ret[0].split('/')[-1],
                             'gen': idx + 1}
                         id_list.append(d)
         return pd.DataFrame(id_list)
@@ -450,7 +459,11 @@ class RealTimeOddsScraper(SeleniumScraperBase):
     """
     JRA公式サイトからほぼリアルタイムのオッズ情報をスクレイピングするクラス。
     """
-    def __init__(self, executable_path: str, visible: bool = False, wait_time: int = 10):
+    RACECOURSE_DICT = {
+        1: '札幌', 2: '函館', 3: '福島', 4: '新潟', 5: '東京',
+        6: '中山', 7: '中京', 8: '京都', 9: '阪神', 10: '小倉'}
+
+    def __init__(self, executable_path: str, visible: bool = False, wait_time: int = 10, select_manually: bool = False):
         """
         Parameters
         ----------
@@ -469,14 +482,16 @@ class RealTimeOddsScraper(SeleniumScraperBase):
         * 2: ある競馬場のレース(12R)一覧が表示されている状態
         * 3: レース個別ページが表示されている状態
         """
-        super().__init__(executable_path=executable_path, visible=visible, wait_time=wait_time)
+        super().__init__(executable_path=executable_path,
+                         visible=visible, wait_time=wait_time)
         self.URL = 'https://www.jra.go.jp/'
         self.status = 0
-        self.get_racecourse_list()
-        print('以下の数字からレースを選択し、select_racecourseメソッドを使用してください')
-        for i, race in enumerate(self.race_list):
-            print(f'{i}, ', race['text'])
         self.__index_base = True
+        if select_manually:
+            self.get_racecourse_list()
+            print('以下の数字からレースを選択し、select_racecourseメソッドを使用してください')
+            for i, race in enumerate(self.race_list):
+                print(f'{i}, ', race['text'])
 
     def change_indexbase(self):
         '''
@@ -536,41 +551,31 @@ class RealTimeOddsScraper(SeleniumScraperBase):
     def get_renpuku_odds(self):
         assert self.status == 3
         self._select_baken_type(4 + self.__index_base)
-        elements = self._get_elements(By.CLASS_NAME, 'fuku3_list')
-        l = list()
-        for content in elements:
-            li_list = content.find_elements(By.TAG_NAME, 'li')
-            for li in li_list:
-                text = li.find_element(By.TAG_NAME, 'caption')
-                umas = text.get_attribute('textContent').split('-')
-                df = pd.read_html(li.get_attribute('outerHTML'))[0]
-                df.columns = ['Third', 'Odds']
-                df['First'] = int(umas[0])
-                df['Second'] = int(umas[1])
-                l.append(df)
-        df = pd.concat(l)[['First', 'Second', 'Third', 'Odds']]
-        df.reset_index(drop=True, inplace=True)
-        return df
+        element = self._get_element(By.ID, 'odds_list')
+        dfs = pd.read_html(element.get_attribute('outerHTML'))
+        horse_num = dfs[0].iloc[:, 0].max()
+        itr = itertools.combinations([i+1 for i in range(horse_num-1)], 2)
+        for i, c in enumerate(itr):
+            dfs[i].columns = ['Third', 'Odds']
+            dfs[i]['First'] = int(c[0])
+            dfs[i]['Second'] = int(c[1])
+        df = pd.concat(dfs)[['First', 'Second', 'Third', 'Odds']]
+        df = df.dropna().drop_duplicates()
+        return df.reset_index(drop=True)
 
     def get_rentan_odds(self):
         self._select_baken_type(5 + self.__index_base)
         element = self._get_element(By.ID, 'odds_list')
-        elements = element.find_elements(By.CLASS_NAME, 'tan3_list')
-        l = list()
-        for content in elements:
-            li_list = content.find_elements(By.TAG_NAME, 'li')
-            for li in li_list:
-                nums = li.find_elements(By.CLASS_NAME, 'num')
-                nums = [num.get_attribute('textContent') for num in nums]
-                df = pd.read_html(li.get_attribute('outerHTML'))[0]
-                df.columns = ['Third', 'Odds']
-                df['First'] = int(nums[0])
-                df['Second'] = int(nums[1])
-                l.append(df)
-        df = pd.concat(l)[['First', 'Second', 'Third', 'Odds']]
-        idx = (df.First == df.Third) | (df.Second == df.Third)
-        df = df[~idx].reset_index(drop=True)
-        return df
+        dfs = pd.read_html(element.get_attribute('outerHTML'))
+        horse_num = dfs[0].iloc[:, 0].max()
+        itr = itertools.permutations([i+1 for i in range(horse_num)], 2)
+        for i, c in enumerate(itr):
+            dfs[i].columns = ['Third', 'Odds']
+            dfs[i]['First'] = int(c[0])
+            dfs[i]['Second'] = int(c[1])
+        df = pd.concat(dfs)[['First', 'Second', 'Third', 'Odds']]
+        df = df.dropna().drop_duplicates()
+        return df.reset_index(drop=True)
 
     def _get_odds_list(self):
         assert self.status == 3
@@ -659,6 +664,33 @@ class RealTimeOddsScraper(SeleniumScraperBase):
                 race_list.append({'text': text, 'element': element})
         return race_list
 
+    def select_race_from_race_id(self, race_id, sleep_time=0.3) -> list:
+        '''
+        その週に開催されている（されていた）レースの一覧について
+        文字列（レース名など）と、elementを取得する。
+        status any -> 3
+        '''
+        self.visit_race_list_page()
+        time.sleep(sleep_time)
+
+        race_id = str(race_id)
+        assert len(race_id) == 12
+        baba = self.RACECOURSE_DICT[int(race_id[4:6])]
+        race_txt = f'{int(race_id[6:8])}回{baba}{int(race_id[8:10])}日'
+
+        days_elements = self._get_elements(By.CLASS_NAME, 'link_list')
+        for days_element in days_elements:
+            elements = days_element.find_elements(By.TAG_NAME, 'div')
+            for element in elements:
+                text = element.get_attribute("textContent")
+                text = text.replace('\n', '').replace(' ', '')
+                if race_txt in text:
+                    self._click(element)
+                    self.status = 2
+                    time.sleep(sleep_time)
+                    self.select_race(int(race_id[10:12]))
+                    return
+
     def get_odds_df_dict(self) -> Dict[str, pd.DataFrame]:
         df_dict = dict()
         # 単勝
@@ -678,7 +710,8 @@ class RealTimeOddsScraper(SeleniumScraperBase):
 
 class OddsScraper(SeleniumScraperBase):
     def __init__(self, executable_path, visible=False, wait_time=10):
-        super().__init__(executable_path=executable_path, visible=visible, wait_time=wait_time)
+        super().__init__(executable_path=executable_path,
+                         visible=visible, wait_time=wait_time)
         self.ODDS_URL = 'https://race.netkeiba.com/odds/index.html?race_id={}&rf=race_submenu'
 
     def visit_page(self, race_id: Union[str, int]):
@@ -1152,6 +1185,7 @@ class LocalRaceidScraper(SeleniumScraperBase):
         65: '帯広', 30: '門別', 35: '盛岡', 36: '水沢', 42: '浦和', 43: '船橋',
         44: '大井', 45: '川崎', 46: '金沢', 47: '笠松', 48: '名古屋',
         50: '園田', 51: '姫路', 54: '高知', 55: '佐賀'}
+
     def __init__(self, executable_path, visible=False, wait_time=2):
         super().__init__(
             executable_path=executable_path, visible=visible, wait_time=wait_time)
@@ -1166,13 +1200,16 @@ class LocalRaceidScraper(SeleniumScraperBase):
         for racecourse_id in self.RACECOURSE_ID_DICT.keys():
             self.visit_page(racecourse_id, today.year, today.month, today.day)
             # レースの存在判定
-            element = self._get_element(By.XPATH, '//*[@id="RaceList"]/dl/dt/div/p')
+            element = self._get_element(
+                By.XPATH, '//*[@id="RaceList"]/dl/dt/div/p')
             if '-回' in element.get_attribute('outerHTML'):
                 continue
             elements = self._get_elements(By.CLASS_NAME, 'RaceList_DataItem')
             for i in range(1, len(elements)+1):
-                element = self._get_element(By.XPATH, f'//*[@id="RaceList"]/dl/dd/ul/li[{i}]/a')
-                soup = BeautifulSoup(element.get_attribute('outerHTML'), "html.parser")
+                element = self._get_element(
+                    By.XPATH, f'//*[@id="RaceList"]/dl/dd/ul/li[{i}]/a')
+                soup = BeautifulSoup(element.get_attribute(
+                    'outerHTML'), "html.parser")
                 race_id = re.findall('\d{12}', soup.find('a').get('href'))[0]
                 race_id_list.append(race_id)
             time.sleep(sleep_time)
