@@ -409,7 +409,10 @@ class HorseDataScraper(SoupScraperBase):
             2016-07-16など、日付を表す文字列
         """
         url = f'https://db.netkeiba.com/horse/{horse_id}/'
-        s = pd.read_html(url)[1].iloc[0, 1]
+
+        soup = self._get_soup(url, encoding='EUC-JP')
+        html = str(soup.find('div', attrs={"class": "db_prof_area_02"}))
+        s = pd.read_html(html)[0].iloc[0, 1]
         dt = datetime.datetime.strptime(s, '%Y年%m月%d日')
         return dt.strftime('%Y-%m-%d')
 
