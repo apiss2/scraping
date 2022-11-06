@@ -273,13 +273,14 @@ class UmabashiraLimitedScraper(SoupScraperBase):
         code = str(race_id)[2:]
         soup = self._get_soup(self.base_url.format(code))
         table = soup.find('table', attrs={"class": 'c1'})
-        rows = table.find_all('tr', recursive=False)
-        data = [[race_id for _ in range(len(rows[1].find_all('td')))]]
-        for idx in [1, 10, 11, 13, 14, 15, 16, 18, 19]:
-            data.append([col.text for col in rows[idx].find_all('td')])
-        df = pd.DataFrame(data).T.iloc[:-1]
-        df.columns = self.cols
-        return df
+        df = pd.read_html(str(table))[0]
+        df = df.T.iloc[:-1, :20]
+        df.columns = [
+            '枠番', '馬番', '馬名', '性齢', '斤量', '騎手', '調教師', '着順',
+            '単勝オッズ', 'レース結果', 'タイム', 'ペース脚質3F', 'コーナー通過順位', '体重',
+            '先行指数', 'ペース指数', '上がり指数', 'スピード指数', '本紙)独自指数', 'SP指数補正後']
+        df['race_id'] = race_id
+        return df[self.cols].copy()
 
 
 class RaceidScraper(NetkeibaSoupScraperBase):
