@@ -265,7 +265,7 @@ class UmabashiraLimitedScraper(SoupScraperBase):
         super().__init__(login_url=None, login_info=None)
         self.base_url = 'http://jiro8.sakura.ne.jp/index.php?code={}'
         self.cols = [
-            'race_id', '馬番', 'ペース脚質3F', 'コーナー通過順位',
+            'race_id', '馬番', 'ペース脚質3F', 'コーナー順位',
             '先行指数', 'ペース指数', '上がり指数', 'スピード指数',
             '本紙)独自指数', 'SP指数補正後']
 
