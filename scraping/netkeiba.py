@@ -739,8 +739,10 @@ class OddsScraper(SeleniumScraperBase):
         # 0なら単勝、1なら複勝のテーブルを取得
         elements = self._get_elements(
             By.CLASS_NAME, "RaceOdds_HorseList_Table")
-        dfs = pd.read_html(elements[idx].get_attribute('outerHTML'))
-        tanpuku_df = dfs[0][['馬番', 'オッズ']]
+        df = pd.read_html(elements[idx].get_attribute('outerHTML'))[0]
+        cols = [col.replace(' ', '') for col in df.columns]
+        df.columns = cols
+        tanpuku_df = df[['馬番', 'オッズ']]
         tanpuku_df.columns = ['First', 'Odds']
         return tanpuku_df
 
