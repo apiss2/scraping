@@ -29,6 +29,9 @@ class SeleniumScraperBase(ABC):
         self.option = ChromeOptions()
         if not visible:
             self.option.add_argument('--headless')
+        self.option.add_experimental_option(
+            'excludeSwitches', ['enable-logging'])
+        self.option.use_chromium = True
         self.driver = Chrome(
             executable_path=executable_path, options=self.option)
         self.driver.implicitly_wait(wait_time)
