@@ -836,7 +836,7 @@ class OddsScraper(SeleniumScraperBase):
         # 着順をソートして重複を削除
         values = renpuku_df.iloc[:, :3].values
         values.sort()
-        renpuku_df.iloc[:, :3] = values
+        renpuku_df[renpuku_df.columns[:3]] = values
         renpuku_df = renpuku_df.drop_duplicates().reset_index(drop=True)
         return renpuku_df
 
